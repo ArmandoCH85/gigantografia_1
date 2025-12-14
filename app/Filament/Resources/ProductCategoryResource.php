@@ -140,7 +140,32 @@ class ProductCategoryResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
-                        ->label('Eliminar Seleccionados'),
+                        ->label('Eliminar Seleccionados')
+                        ->before(function (Collection $records, Tables\Actions\DeleteBulkAction $action) {
+                            foreach ($records as $record) {
+                                if ($record->products()->exists()) {
+                                    Notification::make()
+                                        ->title('Operación Cancelada')
+                                        ->body("La categoría '{$record->name}' no se puede eliminar porque tiene productos asociados.")
+                                        ->danger()
+                                        ->send();
+
+                                    $action->cancel();
+                                    return;
+                                }
+
+                                if ($record->materials()->exists()) {
+                                    Notification::make()
+                                        ->title('Operación Cancelada')
+                                        ->body("La categoría '{$record->name}' no se puede eliminar porque tiene materiales asociados.")
+                                        ->danger()
+                                        ->send();
+
+                                    $action->cancel();
+                                    return;
+                                }
+                            }
+                        }),
                 ]),
             ])
             ->defaultSort('display_order', 'asc')
