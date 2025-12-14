@@ -63,4 +63,12 @@ class ProductCategory extends Model
     {
         return $this->hasMany(Product::class, 'category_id');
     }
+
+    /**
+     * Obtiene los materiales asociados a esta categoría.
+     */
+    public function materials(): HasMany
+    {
+        return $this->hasMany(ProductMaterial::class, 'category_id');
+    }
 }

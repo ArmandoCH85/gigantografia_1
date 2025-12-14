@@ -25,6 +25,9 @@ class Customer extends Model
         'address',
         'address_references',
         'tax_validated',
+        'price_tier_id', // Nuevo campo
+        'sales_channel', // Nuevo campo
+        'customer_type', // Nuevo campo
     ];
 
     /**
@@ -163,5 +166,13 @@ class Customer extends Model
         }
 
         return $genericCustomer;
+    }
+
+    /**
+     * Obtiene el nivel de precios del cliente.
+     */
+    public function priceTier()
+    {
+        return $this->belongsTo(CustomerPriceTier::class, 'price_tier_id');
     }
 }

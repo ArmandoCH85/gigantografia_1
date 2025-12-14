@@ -97,4 +97,20 @@ class Employee extends Model
     {
         return $query->where('employee_role', $role);
     }
+
+    /**
+     * Órdenes donde es responsable de producción.
+     */
+    public function productionResponsible()
+    {
+        return $this->hasMany(ProductionTracking::class, 'responsible_employee_id');
+    }
+
+    /**
+     * Órdenes donde es supervisor de producción.
+     */
+    public function productionSupervised()
+    {
+        return $this->hasMany(ProductionTracking::class, 'supervisor_employee_id');
+    }
 }

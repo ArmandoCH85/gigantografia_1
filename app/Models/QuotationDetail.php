@@ -63,4 +63,12 @@ class QuotationDetail extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+    /**
+     * Obtiene la configuración específica del producto si existe.
+     */
+    public function configuration()
+    {
+        return $this->morphOne(ProductConfiguration::class, 'reference');
+    }
 }

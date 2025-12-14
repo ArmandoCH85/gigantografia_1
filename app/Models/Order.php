@@ -382,6 +382,14 @@ class Order extends Model
     }
 
     /**
+     * Obtiene el seguimiento de producción asociado a la orden.
+     */
+    public function productionTracking(): HasOne
+    {
+        return $this->hasOne(ProductionTracking::class);
+    }
+
+    /**
      * Registra un nuevo pago para la orden.
      *
      * @param string $paymentMethod Método de pago

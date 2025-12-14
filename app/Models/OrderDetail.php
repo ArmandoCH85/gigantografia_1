@@ -57,6 +57,14 @@ class OrderDetail extends Model
     }
 
     /**
+     * Obtiene la configuración específica del producto si existe.
+     */
+    public function configuration()
+    {
+        return $this->morphOne(ProductConfiguration::class, 'reference');
+    }
+
+    /**
      * Verifica si el detalle está pendiente de preparación.
      */
     public function isPending(): bool
