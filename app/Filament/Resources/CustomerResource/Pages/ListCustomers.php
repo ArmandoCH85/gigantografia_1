@@ -61,24 +61,7 @@ class ListCustomers extends ListRecords
                         ->persistent();
                 }),
 
-            // Acción adicional para recargar la lista
-            Actions\Action::make('refresh')
-                ->label('Actualizar lista')
-                ->icon('heroicon-o-arrow-path')
-                ->color('gray')
-                ->action(function () {
-                    try {
-                        // Forzar recarga de la página
-                        return redirect()->refresh();
 
-                    } catch (Exception $e) {
-                        Notification::make()
-                            ->title('Problema al actualizar')
-                            ->body('😅 No se pudo actualizar la lista. Intenta recargar la página manualmente.')
-                            ->warning()
-                            ->send();
-                    }
-                }),
         ];
     }
 
