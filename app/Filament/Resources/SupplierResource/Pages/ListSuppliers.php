@@ -62,33 +62,7 @@ class ListSuppliers extends ListRecords
                         ->persistent();
                 }),
 
-            // Acción adicional para recargar la lista
-            Actions\Action::make('refresh')
-                ->label('🔄 Actualizar lista')
-                ->icon('heroicon-o-arrow-path')
-                ->color('gray')
-                ->tooltip('Recarga la lista de proveedores')
-                ->action(function () {
-                    try {
-                        // Forzar recarga de la página
-                        Notification::make()
-                            ->title('🔄 Lista actualizada')
-                            ->body('La lista de proveedores se ha actualizado correctamente.')
-                            ->success()
-                            ->duration(3000)
-                            ->send();
 
-                        return redirect()->refresh();
-
-                    } catch (Exception $e) {
-                        Notification::make()
-                            ->title('⚠️ Problema al actualizar')
-                            ->body('😅 No se pudo actualizar la lista automáticamente.\n\n💡 Recarga la página manualmente (F5) para ver los cambios.')
-                            ->warning()
-                            ->persistent()
-                            ->send();
-                    }
-                }),
         ];
     }
 
