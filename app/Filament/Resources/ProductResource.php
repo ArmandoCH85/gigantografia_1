@@ -69,17 +69,18 @@ class ProductResource extends Resource
                             ->label('Tipo de Producto')
                             ->options([
                                 Product::TYPE_SALE_ITEM => 'Producto Estándar (Unidad)',
-                                Product::TYPE_SERVICE_GIGANTOGRAFIA => 'Gigantografía (Por m²)',
+                                Product::TYPE_SERVICE_GIGANTOGRAFIA => 'Gigantografía (Configurable)',
                             ])
                             ->required()
                             ->default(Product::TYPE_SALE_ITEM)
                             ->reactive()
-                            ->afterStateUpdated(
-                                fn($state, Forms\Set $set) =>
-                                $state === Product::TYPE_SERVICE_GIGANTOGRAFIA
-                                    ? $set('current_stock', 0)
-                                    : null
-                            ),
+                            ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                if ($state === Product::TYPE_SERVICE_GIGANTOGRAFIA) {
+                                    $set('current_stock', 0);
+                                    $set('sale_price', 0);
+                                    $set('current_cost', 0);
+                                }
+                            }),
 
                     ])->columns(2),
 
@@ -87,35 +88,36 @@ class ProductResource extends Resource
                     ->description('Configure los precios y costos del producto')
                     ->schema([
                         Forms\Components\TextInput::make('sale_price')
-                            ->label(
-                                fn(Forms\Get $get) =>
-                                $get('product_type') === Product::TYPE_SERVICE_GIGANTOGRAFIA
-                                    ? 'Precio Base por m²'
-                                    : 'Precio Unitario'
-                            )
+                            ->label('Precio de Referencia')
                             ->helperText(
                                 fn(Forms\Get $get) =>
                                 $get('product_type') === Product::TYPE_SERVICE_GIGANTOGRAFIA
-                                    ? 'El precio final se calculará según las medidas (Ancho x Alto) y acabados.'
+                                    ? 'El precio se calculará en el pedido según medidas, material y acabados.'
                                     : 'Precio de venta por unidad.'
                             )
                             ->required()
                             ->numeric()
                             ->prefix('S/')
+                            ->default(0.00)
+                            ->disabled(fn(Forms\Get $get) => $get('product_type') === Product::TYPE_SERVICE_GIGANTOGRAFIA)
+                            ->dehydrated()
                             ->maxValue(99999999.99)
                             ->step(0.01),
 
                         Forms\Components\TextInput::make('current_cost')
-                            ->label(
+                            ->label('Costo Referencial')
+                            ->helperText(
                                 fn(Forms\Get $get) =>
                                 $get('product_type') === Product::TYPE_SERVICE_GIGANTOGRAFIA
-                                    ? 'Costo Base por m²'
-                                    : 'Costo Actual'
+                                    ? 'El costo dependerá de los insumos utilizados.'
+                                    : 'Costo actual del producto.'
                             )
                             ->required()
                             ->numeric()
                             ->prefix('S/')
                             ->default(0.00)
+                            ->disabled(fn(Forms\Get $get) => $get('product_type') === Product::TYPE_SERVICE_GIGANTOGRAFIA)
+                            ->dehydrated()
                             ->maxValue(99999999.99)
                             ->step(0.01),
 
