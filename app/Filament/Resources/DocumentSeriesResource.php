@@ -16,7 +16,7 @@ class DocumentSeriesResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
-    protected static ?string $navigationGroup = '📄 Facturación y Ventas';
+    protected static ?string $navigationGroup = 'Facturación y Ventas';
 
     protected static ?string $navigationLabel = 'Series de Comprobantes';
 
@@ -77,7 +77,7 @@ class DocumentSeriesResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('current_number')
                     ->label('Próximo Número')
-                    ->formatStateUsing(fn (int $state) => str_pad($state, 8, '0', STR_PAD_LEFT)),
+                    ->formatStateUsing(fn(int $state) => str_pad($state, 8, '0', STR_PAD_LEFT)),
                 Tables\Columns\IconColumn::make('active')
                     ->label('Activo')
                     ->boolean(),

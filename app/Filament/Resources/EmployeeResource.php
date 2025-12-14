@@ -174,7 +174,7 @@ class EmployeeResource extends Resource
                     ->label('Cargo')
                     ->searchable()
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
+                    ->color(fn(string $state): string => match ($state) {
                         'Gerente', 'Administrativo' => 'primary',
                         'Cocinero', 'Ayudante de cocina' => 'warning',
                         'Mesero', 'Cajero', 'Recepcionista' => 'success',
@@ -233,11 +233,11 @@ class EmployeeResource extends Resource
 
                 Tables\Filters\Filter::make('with_user')
                     ->label('Con cuenta de usuario')
-                    ->query(fn (Builder $query): Builder => $query->whereNotNull('user_id')),
+                    ->query(fn(Builder $query): Builder => $query->whereNotNull('user_id')),
 
                 Tables\Filters\Filter::make('without_user')
                     ->label('Sin cuenta de usuario')
-                    ->query(fn (Builder $query): Builder => $query->whereNull('user_id')),
+                    ->query(fn(Builder $query): Builder => $query->whereNull('user_id')),
 
                 Tables\Filters\TrashedFilter::make()
                     ->label('Mostrar eliminados'),
@@ -256,8 +256,8 @@ class EmployeeResource extends Resource
                     Tables\Actions\RestoreAction::make()
                         ->label('Restaurar'),
                 ])
-                ->icon('heroicon-m-ellipsis-vertical')
-                ->tooltip('Acciones'),
+                    ->icon('heroicon-m-ellipsis-vertical')
+                    ->tooltip('Acciones'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -298,7 +298,7 @@ class EmployeeResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return '👨‍💼 Personal';
+        return 'Personal';
     }
 }
 //cambios visuales

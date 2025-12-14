@@ -23,7 +23,7 @@ class CompanyConfigResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Configuraciones de Empresa';
 
-    protected static ?string $navigationGroup = '⚙️ Configuración';
+    protected static ?string $navigationGroup = 'Configuración';
 
     protected static ?int $navigationSort = 1;
 

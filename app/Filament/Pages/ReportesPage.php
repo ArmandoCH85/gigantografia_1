@@ -38,7 +38,7 @@ class ReportesPage extends Page implements HasForms
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
     protected static ?string $navigationLabel = 'Reportes';
     protected static ?string $title = 'Reportes';
-    protected static ?string $navigationGroup = '📊 Reportes y Análisis';
+    protected static ?string $navigationGroup = 'Reportes y Análisis';
     protected static ?int $navigationSort = 5;
     protected static ?string $slug = 'reportes';
 
@@ -122,14 +122,14 @@ class ReportesPage extends Page implements HasForms
                     ->format('Y-m-d')
                     ->displayFormat('d/m/Y')
                     ->default(now()->startOfDay())
-                    ->visible(fn ($get) => $get('dateRange') === 'custom'),
+                    ->visible(fn($get) => $get('dateRange') === 'custom'),
 
                 DatePicker::make('endDate')
                     ->label('Fecha Fin')
                     ->format('Y-m-d')
                     ->displayFormat('d/m/Y')
                     ->default(now()->endOfDay())
-                    ->visible(fn ($get) => $get('dateRange') === 'custom'),
+                    ->visible(fn($get) => $get('dateRange') === 'custom'),
 
                 \Filament\Forms\Components\TimePicker::make('timeFilter')
                     ->label('Filtro de Hora (Opcional)')
@@ -278,7 +278,8 @@ class ReportesPage extends Page implements HasForms
             }
 
             // Enviar directamente al navegador con un ID único para depuración
-            $this->dispatch('download-pdf',
+            $this->dispatch(
+                'download-pdf',
                 content: base64_encode($pdfContent),
                 filename: $filename,
                 id: uniqid('pdf_')
@@ -325,7 +326,8 @@ class ReportesPage extends Page implements HasForms
             }
 
             // Enviar directamente al navegador con un ID único para depuración
-            $this->dispatch('download-excel',
+            $this->dispatch(
+                'download-excel',
                 content: base64_encode($content),
                 filename: $filename,
                 id: uniqid('excel_')
@@ -337,9 +339,9 @@ class ReportesPage extends Page implements HasForms
     {
         // Obtener datos de productos vendidos
         $productsData = OrderDetail::whereHas('order', function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('order_datetime', [$startDate, $endDate])
-                    ->where('billed', true);
-            })
+            $query->whereBetween('order_datetime', [$startDate, $endDate])
+                ->where('billed', true);
+        })
             ->select(
                 'product_id',
                 DB::raw('SUM(quantity) as quantity_sold'),
@@ -390,7 +392,8 @@ class ReportesPage extends Page implements HasForms
             }
 
             // Enviar directamente al navegador con un ID único para depuración
-            $this->dispatch('download-pdf',
+            $this->dispatch(
+                'download-pdf',
                 content: base64_encode($pdfContent),
                 filename: $filename,
                 id: uniqid('pdf_')
@@ -439,7 +442,8 @@ class ReportesPage extends Page implements HasForms
             }
 
             // Enviar directamente al navegador con un ID único para depuración
-            $this->dispatch('download-excel',
+            $this->dispatch(
+                'download-excel',
                 content: base64_encode($content),
                 filename: $filename,
                 id: uniqid('excel_')
@@ -502,7 +506,8 @@ class ReportesPage extends Page implements HasForms
             }
 
             // Enviar directamente al navegador con un ID único para depuración
-            $this->dispatch('download-pdf',
+            $this->dispatch(
+                'download-pdf',
                 content: base64_encode($pdfContent),
                 filename: $filename,
                 id: uniqid('pdf_')
@@ -553,7 +558,8 @@ class ReportesPage extends Page implements HasForms
             }
 
             // Enviar directamente al navegador con un ID único para depuración
-            $this->dispatch('download-excel',
+            $this->dispatch(
+                'download-excel',
                 content: base64_encode($content),
                 filename: $filename,
                 id: uniqid('excel_')
@@ -577,9 +583,9 @@ class ReportesPage extends Page implements HasForms
 
         // Obtener datos de costos
         $costsData = OrderDetail::whereHas('order', function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('order_datetime', [$startDate, $endDate])
-                    ->where('billed', true);
-            })
+            $query->whereBetween('order_datetime', [$startDate, $endDate])
+                ->where('billed', true);
+        })
             ->join('orders', 'order_details.order_id', '=', 'orders.id')
             ->join('products', 'order_details.product_id', '=', 'products.id')
             ->select(
@@ -647,7 +653,8 @@ class ReportesPage extends Page implements HasForms
             }
 
             // Enviar directamente al navegador con un ID único para depuración
-            $this->dispatch('download-pdf',
+            $this->dispatch(
+                'download-pdf',
                 content: base64_encode($pdfContent),
                 filename: $filename,
                 id: uniqid('pdf_')
@@ -697,7 +704,8 @@ class ReportesPage extends Page implements HasForms
             }
 
             // Enviar directamente al navegador con un ID único para depuración
-            $this->dispatch('download-excel',
+            $this->dispatch(
+                'download-excel',
                 content: base64_encode($content),
                 filename: $filename,
                 id: uniqid('excel_')
@@ -896,13 +904,13 @@ class ReportesPage extends Page implements HasForms
     {
         $this->selectedReport = $report;
         $this->reportType = $report;
-        
+
         // Redirigir a la nueva URL del reporte
         $url = route('filament.admin.pages.report-viewer', [
             'category' => $this->selectedCategory,
             'reportType' => $report
         ]);
-        
+
         $this->redirect($url);
     }
 

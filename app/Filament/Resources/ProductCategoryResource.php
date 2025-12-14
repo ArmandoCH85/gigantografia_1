@@ -167,8 +167,8 @@ class ProductCategoryResource extends Resource
                         ->label('Eliminar')
                         ->color('danger'),
                 ])
-                ->icon('heroicon-m-ellipsis-vertical')
-                ->tooltip('Acciones'),
+                    ->icon('heroicon-m-ellipsis-vertical')
+                    ->tooltip('Acciones'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -221,6 +221,6 @@ class ProductCategoryResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return '🍽️ Menú y Carta';
+        return 'Menú y Carta';
     }
 }

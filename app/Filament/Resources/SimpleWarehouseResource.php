@@ -15,7 +15,7 @@ class SimpleWarehouseResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-building-storefront';
 
-    protected static ?string $navigationGroup = '📦 Inventario y Compras';
+    protected static ?string $navigationGroup = 'Inventario y Compras';
 
     protected static ?string $navigationLabel = 'Almacenes';
 

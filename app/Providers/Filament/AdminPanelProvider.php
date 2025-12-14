@@ -85,7 +85,7 @@ class AdminPanelProvider extends PanelProvider
                 NavigationItem::make('Resúmenes de Boletas')
                     ->url('/admin/summaries')
                     ->icon('heroicon-o-document-text')
-                    ->group('📄 Facturación y Ventas')
+                    ->group('Facturación y Ventas')
                     ->sort(5)
             ])
             // Eliminar grupos personalizados para que funcione con los recursos automáticos

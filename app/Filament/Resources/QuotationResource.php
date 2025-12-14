@@ -22,7 +22,7 @@ class QuotationResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
-    protected static ?string $navigationGroup = '📅 Reservas y Eventos';
+    protected static ?string $navigationGroup = 'Reservas y Eventos';
 
     protected static ?string $navigationLabel = 'Cotizaciones';
 
@@ -111,7 +111,7 @@ class QuotationResource extends Resource
                                     ->schema([
                                         Forms\Components\TextInput::make('quotation_number')
                                             ->label('Número de Cotización')
-                                            ->default(fn () => Quotation::generateQuotationNumber())
+                                            ->default(fn() => Quotation::generateQuotationNumber())
                                             ->disabled()
                                             ->required(),
 
@@ -139,7 +139,7 @@ class QuotationResource extends Resource
                                                 Quotation::STATUS_CONVERTED => 'Convertida',
                                             ])
                                             ->default(Quotation::STATUS_DRAFT)
-                                            ->disabled(fn (string $operation): bool => $operation === 'create')
+                                            ->disabled(fn(string $operation): bool => $operation === 'create')
                                             ->required(),
 
                                         Forms\Components\Select::make('payment_terms')
@@ -155,7 +155,7 @@ class QuotationResource extends Resource
                                     ]),
 
                                 Forms\Components\Hidden::make('user_id')
-                                    ->default(fn () => Auth::id()),
+                                    ->default(fn() => Auth::id()),
                             ]),
 
                         Forms\Components\Section::make('Cliente')
@@ -277,7 +277,8 @@ class QuotationResource extends Resource
                                     ->reorderable(false)
                                     ->collapsible()
                                     ->collapsed(false)
-                                    ->itemLabel(fn (array $state): ?string =>
+                                    ->itemLabel(
+                                        fn(array $state): ?string =>
                                         $state['product_id']
                                             ? Product::find($state['product_id'])?->name . ' - ' . ($state['quantity'] ?? 1) . ' x S/ ' . number_format((float)($state['unit_price'] ?? 0), 2)
                                             : null
@@ -428,14 +429,16 @@ class QuotationResource extends Resource
                     ->label('Válido Hasta')
                     ->date('d/m/Y')
                     ->sortable()
-                    ->color(fn (Quotation $record): string =>
+                    ->color(
+                        fn(Quotation $record): string =>
                         $record->valid_until < now() && !$record->isConverted() ? 'danger' : 'success'
                     ),
 
                 Tables\Columns\TextColumn::make('status')
                     ->label('Estado')
                     ->badge()
-                    ->color(fn (string $state): string =>
+                    ->color(
+                        fn(string $state): string =>
                         match ($state) {
                             'draft' => 'gray',
                             'sent' => 'info',
@@ -446,7 +449,8 @@ class QuotationResource extends Resource
                             default => 'gray',
                         }
                     )
-                    ->formatStateUsing(fn (string $state): string =>
+                    ->formatStateUsing(
+                        fn(string $state): string =>
                         match ($state) {
                             'draft' => 'Borrador',
                             'sent' => 'Enviada',
@@ -469,7 +473,7 @@ class QuotationResource extends Resource
                     ->money('PEN')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true)
-                    ->color(fn ($state) => $state > 0 ? 'success' : 'gray'),
+                    ->color(fn($state) => $state > 0 ? 'success' : 'gray'),
 
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('Usuario')
@@ -504,7 +508,8 @@ class QuotationResource extends Resource
 
                 Tables\Filters\Filter::make('valid')
                     ->label('Vigentes')
-                    ->query(fn (Builder $query): Builder =>
+                    ->query(
+                        fn(Builder $query): Builder =>
                         $query->where('valid_until', '>=', now())
                             ->whereNotIn('status', [Quotation::STATUS_REJECTED, Quotation::STATUS_EXPIRED, Quotation::STATUS_CONVERTED])
                     )
@@ -512,7 +517,8 @@ class QuotationResource extends Resource
 
                 Tables\Filters\Filter::make('expired')
                     ->label('Vencidas')
-                    ->query(fn (Builder $query): Builder =>
+                    ->query(
+                        fn(Builder $query): Builder =>
                         $query->where('valid_until', '<', now())
                             ->whereNotIn('status', [Quotation::STATUS_REJECTED, Quotation::STATUS_EXPIRED, Quotation::STATUS_CONVERTED])
                     )
@@ -528,15 +534,15 @@ class QuotationResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()
-                    ->visible(fn (Quotation $record) => !$record->isConverted()),
+                    ->visible(fn(Quotation $record) => !$record->isConverted()),
                 Tables\Actions\DeleteAction::make()
-                    ->visible(fn (Quotation $record) => !$record->isConverted()),
+                    ->visible(fn(Quotation $record) => !$record->isConverted()),
 
                 Action::make('print')
                     ->label('Imprimir')
                     ->icon('heroicon-o-printer')
                     ->color('gray')
-                    ->url(fn (Quotation $record) => route('filament.admin.resources.quotations.print', ['quotation' => $record]))
+                    ->url(fn(Quotation $record) => route('filament.admin.resources.quotations.print', ['quotation' => $record]))
                     ->openUrlInNewTab(),
 
                 Action::make('email')
@@ -548,11 +554,11 @@ class QuotationResource extends Resource
                             ->label('Correo Electrónico')
                             ->email()
                             ->required()
-                            ->default(fn (Quotation $record) => $record->customer->email ?? ''),
+                            ->default(fn(Quotation $record) => $record->customer->email ?? ''),
 
                         Forms\Components\TextInput::make('subject')
                             ->label('Asunto')
-                            ->default(fn (Quotation $record) => 'Cotización ' . $record->quotation_number),
+                            ->default(fn(Quotation $record) => 'Cotización ' . $record->quotation_number),
 
                         Forms\Components\Textarea::make('message')
                             ->label('Mensaje')

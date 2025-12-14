@@ -26,7 +26,7 @@ class ElectronicBillingConfigResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Configuraciones de Facturación';
 
-    protected static ?string $navigationGroup = '⚙️ Configuración';
+    protected static ?string $navigationGroup = 'Configuración';
 
     protected static ?int $navigationSort = 2;
 
@@ -72,7 +72,7 @@ class ElectronicBillingConfigResource extends Resource
                                     ->label('Estado Actual')
                                     ->content(function () {
                                         $env = AppSetting::getSetting('FacturacionElectronica', 'environment');
-                                        $badge = match($env) {
+                                        $badge = match ($env) {
                                             'production' => '<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">🟢 Producción</span>',
                                             'beta' => '<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200">🔵 Beta/Pruebas</span>',
                                             default => '<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800 border border-gray-200">⚪ No configurado</span>'
@@ -179,9 +179,9 @@ class ElectronicBillingConfigResource extends Resource
                                     'generate_pdf' => 'Generar PDF',
                                     'igv_percent' => 'Porcentaje de IGV',
                                     'qpse_endpoint_beta' => '🧪 Endpoint QPSE Beta',
-                                            'qpse_endpoint_production' => '🚀 Endpoint QPSE Producción',
-                                            'qpse_username' => '👤 Usuario QPSE',
-                                            'qpse_password' => '🔑 Contraseña QPSE',
+                                    'qpse_endpoint_production' => '🚀 Endpoint QPSE Producción',
+                                    'qpse_username' => '👤 Usuario QPSE',
+                                    'qpse_password' => '🔑 Contraseña QPSE',
                                     default => ucfirst(str_replace('_', ' ', $record->key)),
                                 };
                             })

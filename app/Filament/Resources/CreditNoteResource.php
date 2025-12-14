@@ -23,7 +23,7 @@ class CreditNoteResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-receipt-refund';
 
-    protected static ?string $navigationGroup = '📄 Facturación y Ventas';
+    protected static ?string $navigationGroup = 'Facturación y Ventas';
 
     protected static ?string $navigationLabel = 'Notas de Crédito';
 
@@ -44,11 +44,11 @@ class CreditNoteResource extends Resource
                         Forms\Components\Select::make('invoice_id')
                             ->label('Factura Relacionada')
                             ->relationship('invoice', 'series')
-                            ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->series}-{$record->number} ({$record->customer->business_name})")
+                            ->getOptionLabelFromRecordUsing(fn($record) => "{$record->series}-{$record->number} ({$record->customer->business_name})")
                             ->required()
                             ->searchable()
                             ->preload()
-                            ->disabled(fn ($context) => $context === 'edit'),
+                            ->disabled(fn($context) => $context === 'edit'),
 
                         Forms\Components\Grid::make(2)
                             ->schema([
@@ -82,7 +82,7 @@ class CreditNoteResource extends Resource
                                         '10' => '10 - Otros conceptos',
                                     ])
                                     ->required()
-                                    ->disabled(fn ($context) => $context === 'edit'),
+                                    ->disabled(fn($context) => $context === 'edit'),
 
                                 Forms\Components\Select::make('sunat_status')
                                     ->label('Estado SUNAT')
@@ -100,7 +100,7 @@ class CreditNoteResource extends Resource
                             ->label('Descripción del Motivo')
                             ->required()
                             ->maxLength(500)
-                            ->disabled(fn ($context) => $context === 'edit'),
+                            ->disabled(fn($context) => $context === 'edit'),
 
                         Forms\Components\DateTimePicker::make('fecha_emision')
                             ->label('Fecha de Emisión')
@@ -171,7 +171,7 @@ class CreditNoteResource extends Resource
 
                 Tables\Columns\TextColumn::make('invoice.series')
                     ->label('Factura')
-                    ->formatStateUsing(fn ($record) => "{$record->invoice->series}-{$record->invoice->number}")
+                    ->formatStateUsing(fn($record) => "{$record->invoice->series}-{$record->invoice->number}")
                     ->searchable()
                     ->sortable(),
 
@@ -183,7 +183,7 @@ class CreditNoteResource extends Resource
 
                 Tables\Columns\TextColumn::make('motivo_codigo')
                     ->label('Motivo')
-                    ->formatStateUsing(fn ($state) => match($state) {
+                    ->formatStateUsing(fn($state) => match ($state) {
                         '01' => '01 - Anulación',
                         '02' => '02 - Error RUC',
                         '03' => '03 - Error descripción',
@@ -207,7 +207,7 @@ class CreditNoteResource extends Resource
                 Tables\Columns\TextColumn::make('sunat_status')
                     ->label('Estado SUNAT')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
+                    ->color(fn(string $state): string => match ($state) {
                         'PENDIENTE' => 'warning',
                         'ACEPTADO' => 'success',
                         'RECHAZADO' => 'danger',
@@ -262,24 +262,24 @@ class CreditNoteResource extends Resource
                         return $query
                             ->when(
                                 $data['desde'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('fecha_emision', '>=', $date),
+                                fn(Builder $query, $date): Builder => $query->whereDate('fecha_emision', '>=', $date),
                             )
                             ->when(
                                 $data['hasta'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('fecha_emision', '<=', $date),
+                                fn(Builder $query, $date): Builder => $query->whereDate('fecha_emision', '<=', $date),
                             );
                     }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()
-                    ->visible(fn ($record) => $record->sunat_status === 'PENDIENTE'),
-                
+                    ->visible(fn($record) => $record->sunat_status === 'PENDIENTE'),
+
                 Action::make('reenviar_sunat')
                     ->label('Reenviar a SUNAT')
                     ->icon('heroicon-o-arrow-path')
                     ->color('warning')
-                    ->visible(fn ($record) => in_array($record->sunat_status, ['RECHAZADO', 'ERROR', 'PENDIENTE']))
+                    ->visible(fn($record) => in_array($record->sunat_status, ['RECHAZADO', 'ERROR', 'PENDIENTE']))
                     ->requiresConfirmation()
                     ->modalHeading('Reenviar Nota de Crédito a SUNAT')
                     ->modalDescription('¿Está seguro de que desea reenviar esta nota de crédito a SUNAT?')
@@ -287,7 +287,7 @@ class CreditNoteResource extends Resource
                         try {
                             $sunatService = new SunatService();
                             $result = $sunatService->emitirNotaCredito($record->invoice, $record->motivo_codigo, $record->motivo_descripcion);
-                            
+
                             Notification::make()
                                 ->title('Nota de crédito reenviada exitosamente')
                                 ->success()
@@ -305,7 +305,7 @@ class CreditNoteResource extends Resource
                     ->label('Descargar XML')
                     ->icon('heroicon-o-document-arrow-down')
                     ->color('info')
-                    ->visible(fn ($record) => !empty($record->xml_path) && Storage::exists($record->xml_path))
+                    ->visible(fn($record) => !empty($record->xml_path) && Storage::exists($record->xml_path))
                     ->action(function ($record) {
                         return response()->download(storage_path('app/' . $record->xml_path));
                     }),
@@ -314,7 +314,7 @@ class CreditNoteResource extends Resource
                     ->label('Descargar CDR')
                     ->icon('heroicon-o-document-check')
                     ->color('success')
-                    ->visible(fn ($record) => !empty($record->cdr_path) && Storage::exists($record->cdr_path))
+                    ->visible(fn($record) => !empty($record->cdr_path) && Storage::exists($record->cdr_path))
                     ->action(function ($record) {
                         return response()->download(storage_path('app/' . $record->cdr_path));
                     }),
@@ -322,7 +322,7 @@ class CreditNoteResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
-                        ->visible(fn () => auth()->user()->can('delete_credit_note')),
+                        ->visible(fn() => auth()->user()->can('delete_credit_note')),
                 ]),
             ])
             ->defaultSort('created_at', 'desc');

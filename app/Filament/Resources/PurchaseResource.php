@@ -17,7 +17,7 @@ class PurchaseResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
 
-    protected static ?string $navigationGroup = '📦 Inventario y Compras';
+    protected static ?string $navigationGroup = 'Inventario y Compras';
 
     protected static ?string $navigationLabel = 'Compras';
 

@@ -48,13 +48,14 @@ class CustomerResource extends Resource
                             ->label('Número de Documento')
                             ->required()
                             ->maxLength(15)
-                            ->placeholder(fn (callable $get) =>
+                            ->placeholder(
+                                fn(callable $get) =>
                                 $get('document_type') === 'DNI'
                                     ? '12345678'
                                     : '20123456789'
                             )
                             ->rules([
-                                fn (callable $get): \Closure => function (string $attribute, $value, \Closure $fail) use ($get) {
+                                fn(callable $get): \Closure => function (string $attribute, $value, \Closure $fail) use ($get) {
                                     $docType = $get('document_type');
 
                                     if ($docType === 'DNI' && strlen($value) !== 8) {
@@ -69,7 +70,8 @@ class CustomerResource extends Resource
                             ->label('Nombre/Razón Social')
                             ->required()
                             ->maxLength(255)
-                            ->placeholder(fn (callable $get) =>
+                            ->placeholder(
+                                fn(callable $get) =>
                                 $get('document_type') === 'DNI'
                                     ? 'Nombre Completo'
                                     : 'Razón Social de la Empresa'
@@ -158,7 +160,7 @@ class CustomerResource extends Resource
                     ->label('Dirección')
                     ->searchable(['address', 'address_references'])
                     ->limit(30)
-                    ->tooltip(fn (Customer $record): ?string => $record->fullAddress)
+                    ->tooltip(fn(Customer $record): ?string => $record->fullAddress)
                     ->toggleable(),
 
                 Tables\Columns\IconColumn::make('tax_validated')
@@ -215,8 +217,8 @@ class CustomerResource extends Resource
                     Tables\Actions\RestoreAction::make()
                         ->label('Restaurar'),
                 ])
-                ->icon('heroicon-m-ellipsis-vertical')
-                ->tooltip('Acciones'),
+                    ->icon('heroicon-m-ellipsis-vertical')
+                    ->tooltip('Acciones'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -265,6 +267,6 @@ class CustomerResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return '👥 Clientes';
+        return 'Clientes';
     }
 }
