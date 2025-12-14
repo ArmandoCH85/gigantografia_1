@@ -13,6 +13,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Database\Eloquent\Collection;
+use Filament\Notifications\Notification;
 
 class ProductCategoryResource extends Resource
 {
@@ -49,46 +50,15 @@ class ProductCategoryResource extends Resource
                             ->maxLength(255)
                             ->placeholder('Ingrese una descripción breve')
                             ->columnSpan(1),
-                    ]),
 
-                Forms\Components\Section::make('Organización')
-                    ->description('Configuración de visualización y jerarquía')
-                    ->icon('heroicon-o-adjustments-horizontal')
-                    ->collapsible()
-                    ->schema([
-                        Forms\Components\Select::make('parent_category_id')
-                            ->label('Categoría Padre')
-                            ->relationship('parent', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->placeholder('Seleccione una categoría padre (opcional)')
-                            ->createOptionForm([
-                                Forms\Components\TextInput::make('name')
-                                    ->label('Nombre')
-                                    ->required(),
-                                Forms\Components\TextInput::make('description')
-                                    ->label('Descripción'),
-                            ]),
-
-                        Forms\Components\Grid::make(2)
-                            ->schema([
-                                Forms\Components\Toggle::make('visible_in_menu')
-                                    ->label('Visible en Menú')
-                                    ->required()
-                                    ->default(true)
-                                    ->helperText('Determina si la categoría será visible en el menú')
-                                    ->onIcon('heroicon-s-eye')
-                                    ->offIcon('heroicon-s-eye-slash'),
-
-                                Forms\Components\TextInput::make('display_order')
-                                    ->label('Orden de Visualización')
-                                    ->required()
-                                    ->numeric()
-                                    ->default(0)
-                                    ->minValue(0)
-                                    ->helperText('Número que determina el orden de visualización (menor = primero)')
-                                    ->suffixIcon('heroicon-m-arrows-up-down'),
-                            ]),
+                        Forms\Components\TextInput::make('display_order')
+                            ->label('Orden de Visualización')
+                            ->required()
+                            ->numeric()
+                            ->default(0)
+                            ->minValue(0)
+                            ->helperText('Número que determina el orden de visualización (menor = primero)')
+                            ->suffixIcon('heroicon-m-arrows-up-down'),
                     ]),
             ]);
     }
@@ -110,20 +80,6 @@ class ProductCategoryResource extends Resource
                     ->limit(50)
                     ->wrap(),
 
-                Tables\Columns\TextColumn::make('parent.name')
-                    ->label('Categoría Padre')
-                    ->sortable()
-                    ->default('—')
-                    ->icon('heroicon-o-arrow-up'),
-
-                Tables\Columns\IconColumn::make('visible_in_menu')
-                    ->label('Visible en Menú')
-                    ->boolean()
-                    ->trueIcon('heroicon-o-eye')
-                    ->falseIcon('heroicon-o-eye-slash')
-                    ->trueColor('success')
-                    ->falseColor('danger'),
-
                 Tables\Columns\TextColumn::make('display_order')
                     ->label('Orden')
                     ->numeric()
@@ -143,17 +99,7 @@ class ProductCategoryResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('parent_category_id')
-                    ->label('Categoría Padre')
-                    ->relationship('parent', 'name')
-                    ->searchable()
-                    ->preload(),
-
-                Tables\Filters\TernaryFilter::make('visible_in_menu')
-                    ->label('Visibilidad')
-                    ->placeholder('Todas las categorías')
-                    ->trueLabel('Solo visibles')
-                    ->falseLabel('Solo ocultas')
+                // Filtros eliminados
             ])
             ->actions([
                 Tables\Actions\ActionGroup::make([
@@ -165,7 +111,28 @@ class ProductCategoryResource extends Resource
                         ->color('warning'),
                     Tables\Actions\DeleteAction::make()
                         ->label('Eliminar')
-                        ->color('danger'),
+                        ->color('danger')
+                        ->before(function (ProductCategory $record, Tables\Actions\DeleteAction $action) {
+                            if ($record->products()->exists()) {
+                                Notification::make()
+                                    ->title('Acción Denegada')
+                                    ->body('No se puede eliminar: Esta categoría tiene PRODUCTOS asociados (' . $record->products()->count() . ').')
+                                    ->danger()
+                                    ->send();
+
+                                $action->cancel();
+                            }
+
+                            if ($record->materials()->exists()) {
+                                Notification::make()
+                                    ->title('Acción Denegada')
+                                    ->body('No se puede eliminar: Esta categoría tiene MATERIALES asociados.')
+                                    ->danger()
+                                    ->send();
+
+                                $action->cancel();
+                            }
+                        }),
                 ])
                     ->icon('heroicon-m-ellipsis-vertical')
                     ->tooltip('Acciones'),
@@ -174,20 +141,6 @@ class ProductCategoryResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
                         ->label('Eliminar Seleccionados'),
-                    Tables\Actions\BulkAction::make('cambiar_visibilidad')
-                        ->label('Cambiar Visibilidad')
-                        ->icon('heroicon-o-eye')
-                        ->action(function (Collection $records, array $data): void {
-                            foreach ($records as $record) {
-                                $record->visible_in_menu = $data['visible'];
-                                $record->save();
-                            }
-                        })
-                        ->form([
-                            Forms\Components\Toggle::make('visible')
-                                ->label('¿Mostrar en menú?')
-                                ->default(true),
-                        ]),
                 ]),
             ])
             ->defaultSort('display_order', 'asc')
