@@ -40,13 +40,11 @@ class CustomerResource extends Resource
                         Forms\Components\Select::make('document_type')
                             ->label('Tipo de Documento')
                             ->options(Customer::DOCUMENT_TYPES)
-                            ->required()
                             ->default('DNI')
                             ->reactive(),
 
                         Forms\Components\TextInput::make('document_number')
                             ->label('Número de Documento')
-                            ->required()
                             ->maxLength(15)
                             ->placeholder(
                                 fn(callable $get) =>
@@ -57,6 +55,8 @@ class CustomerResource extends Resource
                             ->rules([
                                 fn(callable $get): \Closure => function (string $attribute, $value, \Closure $fail) use ($get) {
                                     $docType = $get('document_type');
+                                    
+                                    if (empty($value)) return;
 
                                     if ($docType === 'DNI' && strlen($value) !== 8) {
                                         $fail('El DNI debe tener 8 dígitos.');
@@ -87,6 +87,7 @@ class CustomerResource extends Resource
                         Forms\Components\TextInput::make('phone')
                             ->label('Teléfono')
                             ->tel()
+                            ->required()
                             ->maxLength(20)
                             ->placeholder('999-999-999')
                             ->suffixIcon('heroicon-m-phone'),
