@@ -26,8 +26,7 @@ use Illuminate\Support\Facades\Blade;
 use App\Http\Controllers\PreBillPrintController;
 
 Route::get('/', function () {
-    // Mostrar la página principal del sitio
-    return view('home');
+    return redirect()->route('filament.admin.auth.login');
 });
 
 // Ruta para redirigir a los usuarios según su rol
