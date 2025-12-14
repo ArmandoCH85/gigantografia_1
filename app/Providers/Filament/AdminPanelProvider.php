@@ -23,8 +23,6 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Filament\Navigation\NavigationItem;
 use Filament\Navigation\NavigationGroup;
 use Illuminate\Support\Facades\Auth;
-use App\Helpers\PermissionHelper;
-use App\Filament\Pages\TableMap;
 use App\Filament\Pages\InventarioPorAlmacen;
 
 class AdminPanelProvider extends PanelProvider
@@ -66,10 +64,8 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             // Registrar páginas explícitamente en lugar de descubrirlas automáticamente
             ->pages([
-                TableMap::class,
                 \App\Filament\Pages\PosInterface::class,
                 \App\Filament\Pages\Dashboard::class, // ✅ Dashboard personalizado por roles
-                \App\Filament\Pages\ReservationCalendar::class,
                 \App\Filament\Pages\ReportesPage::class,
                 \App\Filament\Pages\ReportViewerPage::class,
                 InventarioPorAlmacen::class, // ✅ Página de inventario por almacén
@@ -78,7 +74,7 @@ class AdminPanelProvider extends PanelProvider
             // ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
                 Widgets\AccountWidget::class,
-                \App\Filament\Widgets\ReservationStats::class,
+
                 \App\Filament\Widgets\PaymentMethodsWidget::class,
                 \App\Filament\Widgets\SalesStatsWidget::class,
                 \App\Filament\Widgets\SalesChartWidget::class,
@@ -86,13 +82,13 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Widgets\SalesByUserWidget::class, // ✅ Widget agregado para resolver error de componente
                 \App\Filament\Widgets\TopProductsWidget::class,
                 \App\Filament\Widgets\SalesHoursWidget::class,
-                \App\Filament\Widgets\TableStatsWidget::class,
+
                 \App\Filament\Widgets\SuppliersCountWidget::class,
                 \App\Filament\Widgets\SunatConfigurationOverview::class,
                 \App\Filament\Widgets\ProfitChartWidget::class,
-                \App\Filament\Widgets\CashRegisterStatsWidget::class,
+
                 \App\Filament\Widgets\PaymentMethodsChart::class,
-                \App\Filament\Widgets\CashRegisterPerformanceChart::class,
+
                 \App\Filament\Widgets\PurchaseStatsWidget::class, // ✅ Widget de estadísticas de compras agregado
             ])
             // Habilitar descubrimiento automático de widgets como alternativa

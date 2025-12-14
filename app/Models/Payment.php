@@ -17,7 +17,6 @@ class Payment extends Model
      */
     protected $fillable = [
         'order_id',
-        'cash_register_id',
         'payment_method',
         'amount',
         'reference_number',
@@ -78,7 +77,7 @@ class Payment extends Model
         }
 
         // Si no es un caso especial, usar el match normal
-        return match($this->payment_method) {
+        return match ($this->payment_method) {
             self::METHOD_CASH => 'Efectivo',
             self::METHOD_CARD => 'Tarjeta',
             self::METHOD_BANK_TRANSFER => 'Transferencia Bancaria',
@@ -88,14 +87,4 @@ class Payment extends Model
             default => $this->payment_method,
         };
     }
-
-    /**
-     * Obtiene la caja registradora asociada al pago.
-     */
-    public function cashRegister(): BelongsTo
-    {
-        return $this->belongsTo(CashRegister::class);
-    }
-
-
 }
