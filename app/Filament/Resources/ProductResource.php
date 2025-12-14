@@ -35,9 +35,12 @@ class ProductResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('code')
                             ->label('Código')
+                            ->default(fn() => 'PRD-' . strtoupper(str()->random(8)))
                             ->required()
                             ->maxLength(20)
-                            ->placeholder('Ingrese el código del producto'),
+                            ->disabled()
+                            ->dehydrated()
+                            ->unique(Product::class, 'code', ignoreRecord: true),
 
                         Forms\Components\TextInput::make('name')
                             ->label('Nombre')
