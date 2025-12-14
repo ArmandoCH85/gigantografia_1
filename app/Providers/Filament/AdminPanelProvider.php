@@ -35,7 +35,8 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login(\App\Filament\Pages\Auth\CodeLogin::class)
+            ->login()
+            ->authGuard('web')
             ->sidebarCollapsibleOnDesktop()
             ->sidebarWidth('16rem') // Ancho optimizado - balance perfecto
             ->collapsedSidebarWidth('4rem') // Ancho colapsado elegante
@@ -111,7 +112,7 @@ class AdminPanelProvider extends PanelProvider
             // Render Hooks para personalización del login POS
             ->renderHook(PanelsRenderHook::HEAD_END, fn(): string => '<link rel="preconnect" href="https://fonts.googleapis.com">' . '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' . '<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">' . '<link rel="stylesheet" href="' . asset('css/login-daisyui-compiled.css') . '">' . '<link rel="stylesheet" href="' . asset('css/custom-navigation.css') . '">' . '<script src="' . asset('js/custom-navigation.js') . '"></script>' . '<style id="admin-panel-typography-scale">.fi-body{font-size:17.5px;line-height:1.55;font-weight:400;font-family:"Manrope",Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}</style>')
             ->renderHook(PanelsRenderHook::AUTH_LOGIN_FORM_BEFORE, fn(): string => view('filament.auth.login-header')->render())
-            ->renderHook(PanelsRenderHook::AUTH_LOGIN_FORM_AFTER, fn(): string => '<div class="flex flex-col items-center gap-2 mt-4 text-sm text-gray-500">' . '<span>Acceso por código PIN.</span>' . '<a href="' . url('/waiter/login') . '" class="text-primary-600 hover:underline">Ir al login de mesero</a>' . '</div>')
+            ->renderHook(PanelsRenderHook::AUTH_LOGIN_FORM_AFTER, fn(): string => '<div class="flex flex-col items-center gap-2 mt-4 text-sm text-gray-500">' . '<a href="' . url('/waiter/login') . '" class="text-primary-600 hover:underline">Ir al login de mesero</a>' . '</div>')
             // 🔗 Accesos rápidos en el HEADER (topbar)
             ->renderHook(PanelsRenderHook::TOPBAR_START, fn(): string => view('filament.topbar.quick-links')->render())
             ->renderHook(
