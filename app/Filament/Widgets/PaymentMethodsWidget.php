@@ -19,16 +19,14 @@ class PaymentMethodsWidget extends ChartWidget
 
     protected static ?string $maxHeight = '350px';
 
-    // 📐 COLUMNSPAN RESPONSIVO SEGÚN MEJORES PRÁCTICAS FILAMENT
     protected int | string | array $columnSpan = [
-        'default' => 1,  // Móvil: ancho completo
-        'sm' => 2,       // Tablet: 2 columnas
-        'md' => 2,       // Desktop: 2 de 4 columnas
-        'xl' => 3,       // Desktop grande: 3 de 6 columnas
-        '2xl' => 4,      // Desktop extra: 4 de 8 columnas
+        'default' => 1,
+        'sm' => 2,
+        'md' => 2,
+        'xl' => 3,
+        '2xl' => 4,
     ];
 
-    // 🔄 REACTIVIDAD A FILTROS DEL DASHBOARD
     protected static bool $isLazy = false;
 
     protected $listeners = [
@@ -49,10 +47,6 @@ class PaymentMethodsWidget extends ChartWidget
                         '#3B82F6', // 💙 Azul - Tarjetas
                         '#F59E0B', // 🟡 Ámbar - Yape
                         '#8B5CF6', // 💜 Púrpura - Plin
-                        '#EF4444', // ❤️ Rojo - Pedidos Ya
-                        '#F97316', // 🟠 Naranja - Didi Food
-                        '#06B6D4', // 💙 Cyan - Bita Express
-                        '#EC4899', // 🩷 Rosa - Rappi
                         '#6B7280', // ⚫ Gris - Transferencias
                     ],
                     'borderWidth' => 2,
@@ -95,7 +89,6 @@ class PaymentMethodsWidget extends ChartWidget
                     'cornerRadius' => 8,
                     'displayColors' => true,
                     'callbacks' => [
-                        // 💰 FORMATO DE TOOLTIPS CON TRANSACCIONES
                         'label' => "function(context) {
                             const label = context.label || '';
                             const value = context.parsed || 0;
@@ -109,7 +102,7 @@ class PaymentMethodsWidget extends ChartWidget
                     ],
                 ],
             ],
-            'cutout' => '60%', // 🍩 HACE EL AGUJERO DEL CENTRO
+            'cutout' => '60%',
             'animation' => [
                 'animateRotate' => true,
                 'animateScale' => true,
@@ -134,51 +127,31 @@ class PaymentMethodsWidget extends ChartWidget
             '💳 Tarjetas' => 0,
             '📱 Yape' => 0,
             '💙 Plin' => 0,
-            '🛵 Pedidos Ya' => 0,
-            '🚗 Didi Food' => 0,
-            '🚚 Bita Express' => 0,
-            '🛵 Rappi' => 0,
             '🏦 Transferencias' => 0,
         ];
 
         foreach ($payments as $payment) {
             $amount = (float) $payment->amount;
+            $method = $payment->payment_method;
 
-            // 🏷️ CATEGORIZAR MÉTODOS DE PAGO
-            if ($payment->payment_method === 'cash') {
+            if ($method === 'cash') {
                 $amounts['💵 Efectivo'] += $amount;
-            } elseif (in_array($payment->payment_method, ['credit_card', 'debit_card', 'card'])) {
+            } elseif (in_array($method, ['credit_card', 'debit_card', 'card'])) {
                 $amounts['💳 Tarjetas'] += $amount;
-            } elseif ($payment->payment_method === 'digital_wallet') {
-                // 📱 DETECTAR YAPE VS PLIN POR REFERENCIA
-                if ($payment->reference_number && strpos($payment->reference_number, 'Tipo: yape') !== false) {
-                    $amounts['📱 Yape'] += $amount;
-                } elseif ($payment->reference_number && strpos($payment->reference_number, 'Tipo: plin') !== false) {
+            } elseif ($method === 'digital_wallet' || $method === 'yape' || $method === 'plin') {
+                // Heurística simple para diferenciar si no es explícito
+                if ($method === 'plin' || (strpos(strtolower($payment->reference_number ?? ''), 'plin') !== false)) {
                     $amounts['💙 Plin'] += $amount;
                 } else {
-                    $amounts['📱 Yape'] += $amount; // Por defecto
+                    $amounts['📱 Yape'] += $amount;
                 }
-            } elseif ($payment->payment_method === 'yape') {
-                $amounts['📱 Yape'] += $amount;
-            } elseif ($payment->payment_method === 'plin') {
-                $amounts['💙 Plin'] += $amount;
-            } elseif ($payment->payment_method === 'pedidos_ya') {
-                $amounts['🛵 Pedidos Ya'] += $amount;
-            } elseif ($payment->payment_method === 'didi_food') {
-                $amounts['🚗 Didi Food'] += $amount;
-            } elseif ($payment->payment_method === 'bita_express') {
-                $amounts['🚚 Bita Express'] += $amount;
-            } elseif ($payment->payment_method === 'rappi') {
-                $amounts['🛵 Rappi'] += $amount;
-            } elseif (in_array($payment->payment_method, ['bank_transfer', 'transfer'])) {
+            } elseif (in_array($method, ['bank_transfer', 'transfer'])) {
                 $amounts['🏦 Transferencias'] += $amount;
             }
         }
 
-        // 🚮 ELIMINAR MÉTODOS CON 0 VENTAS
         $amounts = array_filter($amounts, fn($amount) => $amount > 0);
 
-        // 📊 AÑADIR ESTADÍSTICAS EXTRA
         $totalAmount = array_sum($amounts);
         $totalTransactions = $payments->count();
 
@@ -188,10 +161,4 @@ class PaymentMethodsWidget extends ChartWidget
             'total_transactions' => $totalTransactions,
         ];
     }
-
-    // 🔄 ACTUALIZACIÓN AUTOMÁTICA
-    protected static ?string $pollingInterval = '60s';
-
-    // 📱 DESCRIPCIÓN PARA MEJOR UX
-    protected static ?string $description = 'Distribución de ingresos por método de pago';
 }

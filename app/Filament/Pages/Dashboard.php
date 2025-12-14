@@ -52,9 +52,6 @@ class Dashboard extends BaseDashboard
                 // 💳 ROW 3: PAGOS Y PRODUCTOS (lado a lado)
                 \App\Filament\Widgets\PaymentMethodsWidget::class,
                 \App\Filament\Widgets\TopProductsWidget::class,
-
-                // 💰 ROW 4: CONFIGURACIÓN
-                \App\Filament\Widgets\SunatConfigurationOverview::class,
             ];
         }
 
@@ -81,20 +78,10 @@ class Dashboard extends BaseDashboard
 
                 // 💳 ROW 2: MÉTODOS DE PAGO Y HORAS (lado a lado)
                 \App\Filament\Widgets\PaymentMethodsWidget::class,
-                \App\Filament\Widgets\SalesHoursWidget::class,
             ];
         }
 
-        // 👨‍🍳 COCINA/PRODUCCIÓN - Dashboard de producción (3 widgets)
-        if ($user->hasRole('kitchen')) {
-            return [
-                // 🏆 ROW 1: PRODUCTOS MÁS PEDIDOS
-                \App\Filament\Widgets\TopProductsWidget::class,
 
-                // ⏰ ROW 2: HORAS PICO
-                \App\Filament\Widgets\SalesHoursWidget::class,
-            ];
-        }
 
         // 📊 DEFAULT - Para roles no definidos (2 widgets)
         return [
@@ -156,13 +143,7 @@ class Dashboard extends BaseDashboard
             return 'Panel de Caja';
         }
 
-        if ($user->hasRole('kitchen')) {
-            return 'Panel de Cocina';
-        }
 
-        if ($user->hasRole('delivery')) {
-            return 'Panel de Delivery';
-        }
 
         return 'Escritorio';
     }

@@ -58,11 +58,11 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             // Registrar páginas explícitamente en lugar de descubrirlas automáticamente
             ->pages([
-                \App\Filament\Pages\PosInterface::class,
+
                 \App\Filament\Pages\Dashboard::class, // ✅ Dashboard personalizado por roles
                 \App\Filament\Pages\ReportesPage::class,
                 \App\Filament\Pages\ReportViewerPage::class,
-                InventarioPorAlmacen::class, // ✅ Página de inventario por almacén
+
             ])
             // COMENTADO: Auto-descubrimiento de widgets deshabilitado para control granular
             // ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
@@ -74,15 +74,9 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Widgets\SalesChartWidget::class,
 
                 \App\Filament\Widgets\TopProductsWidget::class,
-                \App\Filament\Widgets\SalesHoursWidget::class,
 
-                \App\Filament\Widgets\SuppliersCountWidget::class,
-                \App\Filament\Widgets\SunatConfigurationOverview::class,
-                \App\Filament\Widgets\ProfitChartWidget::class,
 
-                \App\Filament\Widgets\PaymentMethodsChart::class,
 
-                \App\Filament\Widgets\PurchaseStatsWidget::class, // ✅ Widget de estadísticas de compras agregado
             ])
             // Habilitar descubrimiento automático de widgets como alternativa
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
@@ -304,11 +298,7 @@ class AdminPanelProvider extends PanelProvider
                     }
 
                     /* 🟢 VERDE CORPORATIVO - POS y Operaciones de Caja */
-                    .fi-sidebar-item[href*="pos-interface"] .fi-sidebar-item-icon,
-                    .fi-sidebar-item[href*="operaciones-caja"] .fi-sidebar-item-icon,
-                    .fi-sidebar-item[href*="mapa-mesas"] .fi-sidebar-item-icon {
-                        color: var(--corporate-secondary) !important;
-                    }
+
 
                     /* 🟠 NARANJA CORPORATIVO - Reportes */
                     .fi-sidebar-item[href*="reportes"] .fi-sidebar-item-icon,
@@ -327,7 +317,6 @@ class AdminPanelProvider extends PanelProvider
                     /* 🔴 ROJO CORPORATIVO - Inventario y Productos */
                     .fi-sidebar-item[href*="products"] .fi-sidebar-item-icon,
                     .fi-sidebar-item[href*="product-categories"] .fi-sidebar-item-icon,
-                    .fi-sidebar-item[href*="ingredients"] .fi-sidebar-item-icon,
                     .fi-sidebar-item[href*="inventario"] .fi-sidebar-item-icon,
                     .fi-sidebar-item[href*="warehouse"] .fi-sidebar-item-icon {
                         color: var(--corporate-accent) !important;
@@ -351,21 +340,7 @@ class AdminPanelProvider extends PanelProvider
                         white-space: nowrap !important;
                     }
 
-                    /* 🎨 DESTACAR "APERTURA Y CIERRE DE CAJA" */
-                    .fi-sidebar-item[href*="operaciones-caja"] .fi-sidebar-item-label {
-                        background-color: #EEF2FF !important;
-                        color: #2563EB !important;
-                        font-weight: 600 !important;
-                        padding: 0.375rem 0.625rem !important;
-                        border-radius: 0.375rem !important;
-                        display: inline-block !important;
-                    }
 
-                    /* Mantener el color en hover */
-                    .fi-sidebar-item[href*="operaciones-caja"]:hover .fi-sidebar-item-label {
-                        background-color: #DBEAFE !important;
-                        color: #1D4ED8 !important;
-                    }
 
                     /* 🌙 DARK MODE - MANTENER FONDO BLANCO */
                     .dark .fi-sidebar {
@@ -779,12 +754,6 @@ class AdminPanelProvider extends PanelProvider
                     function applyIconColors() {
                         const colorMap = {
                             "dashboard": "#2563EB", // Azul corporativo
-                            "pos-interface": "#059669", // Verde corporativo
-
-                            "operaciones-caja": "#059669", // Verde corporativo
-                            "caja": "#059669", // Verde corporativo para el nuevo módulo
-                            "cash-register-report": "#059669", // Reportes de caja
-                            "egresos": "#DC2626", // Rojo corporativo para egresos
                             "reportes": "#D97706", // Naranja corporativo
                             "products": "#DC2626", // Rojo corporativo
                             "product-categories": "#DC2626", // Rojo corporativo
