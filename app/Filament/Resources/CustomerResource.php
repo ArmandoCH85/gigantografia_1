@@ -236,6 +236,16 @@ class CustomerResource extends Resource
                     ->label('Tipo de Documento')
                     ->options(Customer::DOCUMENT_TYPES),
 
+                Tables\Filters\SelectFilter::make('sales_channel')
+                    ->label('Canal de Captación')
+                    ->options([
+                        'Redes Sociales' => 'Redes Sociales',
+                        'Web' => 'Web',
+                        'Presencial' => 'Presencial',
+                        'Recomendación' => 'Recomendación',
+                        'Ferias' => 'Ferias',
+                    ]),
+
                 Tables\Filters\TernaryFilter::make('tax_validated')
                     ->label('Estado de Validación')
                     ->placeholder('Todos los clientes')
