@@ -63,8 +63,8 @@ class ProductResource extends Resource
                                                 Forms\Components\Select::make('product_type')
                                                     ->label('Tipo de Producto')
                                                     ->options([
-                                                        Product::TYPE_SALE_ITEM => 'Producto Estándar (Unidad)',
                                                         Product::TYPE_SERVICE_GIGANTOGRAFIA => 'Gigantografía (Configurable)',
+                                                        Product::TYPE_SALE_ITEM => 'Producto Estándar (Unidad)',
                                                     ])
                                                     ->required()
                                                     ->default(Product::TYPE_SALE_ITEM)
