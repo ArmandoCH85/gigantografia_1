@@ -25,6 +25,9 @@
         </svg>
         <span>Conexión Segura</span>
     </div>
+
+    {{-- CSS Fix para Login Dark Mode --}}
+    <link rel="stylesheet" href="{{ asset('css/login-daisyui-compiled.css') }}">
 </div>
 
 {{--

@@ -384,3 +384,26 @@ body {
         font-size: 1.5rem;
     }
 }
+
+/* ===== Fix Filament Login en Dark Mode (texto legible) ===== */
+html.dark .fi-fo-field-wrp-label,
+html.dark .fi-fo-field-wrp-label > span {
+  color: rgb(229 231 235) !important; /* gray-200 */
+}
+
+
+html.dark .fi-input {
+  background-color: rgb(17 24 39) !important; /* gray-900 */
+  color: rgb(243 244 246) !important;          /* gray-100 */
+  -webkit-text-fill-color: rgb(243 244 246) !important;
+}
+
+html.dark .fi-input::placeholder {
+  color: rgb(156 163 175) !important;          /* gray-400 */
+  -webkit-text-fill-color: rgb(156 163 175) !important;
+}
+
+html.dark .fi-input-wrp {
+  background-color: rgb(17 24 39) !important;
+  border-color: rgb(55 65 81) !important;      /* gray-700 */
+}
