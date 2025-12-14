@@ -121,13 +121,7 @@ class Order extends Model
         return $this->hasMany(OrderDetail::class);
     }
 
-    /**
-     * Obtiene la información de delivery asociada a la orden.
-     */
-    public function deliveryOrder(): HasOne
-    {
-        return $this->hasOne(DeliveryOrder::class);
-    }
+
 
 
 
@@ -179,165 +173,9 @@ class Order extends Model
         return $this->service_type === 'drive_thru';
     }
 
-    /**
-     * Procesa las recetas de los productos en la orden y registra los movimientos de inventario
-     * utilizando el método FIFO.
-     *
-     * @param int|null $warehouseId ID del almacén para consumir los ingredientes (opcional)
-     * @return array Detalles del procesamiento
-     */
-    public function processRecipes(?int $warehouseId = null): array
-    {
-        // Solo procesar si la orden está en preparación o abierta
-        if (!in_array($this->status, [self::STATUS_IN_PREPARATION, self::STATUS_OPEN])) {
-            return [
-                'success' => false,
-                'message' => 'La orden no está en un estado válido para procesar recetas',
-                'details' => []
-            ];
-        }
 
-        $processedProducts = [];
-        $totalCost = 0;
-        $errors = [];
 
-        // Obtener el almacén predeterminado si no se especifica uno
-        if (!$warehouseId) {
-            $defaultWarehouse = Warehouse::where('is_default', true)->first();
-            $warehouseId = $defaultWarehouse ? $defaultWarehouse->id : null;
-        }
 
-        // Recorrer todos los detalles de la orden
-        foreach ($this->orderDetails as $detail) {
-            // Obtener el producto
-            $product = Product::find($detail->product_id);
-
-            // Si el producto no existe o no es un artículo de venta, continuar
-            if (!$product || !$product->isSaleItem()) {
-                continue;
-            }
-
-            // Si el producto tiene receta, procesar los ingredientes
-            if ($product->has_recipe && $product->recipe) {
-                $recipe = $product->recipe;
-
-                try {
-                    // Verificar si hay suficiente stock
-                    if (!$recipe->hasEnoughIngredients($detail->quantity, $warehouseId)) {
-                        $errors[] = [
-                            'product_id' => $product->id,
-                            'product_name' => $product->name,
-                            'quantity' => $detail->quantity,
-                            'message' => 'No hay suficiente stock para preparar este producto'
-                        ];
-                        continue;
-                    }
-
-                    // Consumir los ingredientes utilizando FIFO
-                    $result = $recipe->consumeIngredients(
-                        $detail->quantity,
-                        $warehouseId,
-                        $this->id,
-                        $this->employee_id // Usar el empleado asociado a la orden
-                    );
-
-                    $processedProducts[] = [
-                        'product_id' => $product->id,
-                        'product_name' => $product->name,
-                        'quantity' => $detail->quantity,
-                        'cost' => $result['total_cost'],
-                        'ingredients' => $result['ingredients']
-                    ];
-
-                    $totalCost += $result['total_cost'];
-
-                    // Actualizar el costo en el detalle de la orden
-                    $detail->cost = $result['total_cost'] / $detail->quantity;
-                    $detail->save();
-                } catch (\Exception $e) {
-                    $errors[] = [
-                        'product_id' => $product->id,
-                        'product_name' => $product->name,
-                        'quantity' => $detail->quantity,
-                        'message' => $e->getMessage()
-                    ];
-                }
-            }
-        }
-
-        // Si se procesaron productos, actualizar el estado de la orden
-        if (count($processedProducts) > 0 && $this->status === self::STATUS_OPEN) {
-            $this->status = self::STATUS_IN_PREPARATION;
-            $this->save();
-        }
-
-        return [
-            'success' => count($errors) === 0,
-            'processed_products' => $processedProducts,
-            'total_cost' => $totalCost,
-            'errors' => $errors,
-            'order_id' => $this->id,
-            'order_status' => $this->status,
-            'warehouse_id' => $warehouseId
-        ];
-    }
-
-    /**
-     * Envía la orden a cocina, cambiando su estado a 'in_preparation'.
-     *
-     * @return bool
-     */
-    public function sendToKitchen(): bool
-    {
-        if ($this->status === self::STATUS_OPEN) {
-            $this->status = self::STATUS_IN_PREPARATION;
-            $this->save();
-
-            // Actualizar estado de los detalles de la orden
-            $this->orderDetails()->update(['status' => 'in_preparation']);
-
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Marca la orden como lista para servir.
-     *
-     * @return bool
-     */
-    public function markAsReady(): bool
-    {
-        if ($this->status === self::STATUS_IN_PREPARATION) {
-            $this->status = self::STATUS_READY;
-            $this->save();
-
-            // Actualizar estado de los detalles de la orden
-            $this->orderDetails()->update(['status' => 'ready']);
-
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Marca la orden como entregada al cliente.
-     *
-     * @return bool
-     */
-    public function markAsDelivered(): bool
-    {
-        if ($this->status === self::STATUS_READY) {
-            $this->status = self::STATUS_DELIVERED;
-            $this->save();
-
-            // Actualizar estado de los detalles de la orden
-            $this->orderDetails()->update(['status' => 'delivered']);
-
-            return true;
-        }
-        return false;
-    }
 
     /**
      * Completa la orden, cambiando su estado a 'completed'.
@@ -353,23 +191,6 @@ class Order extends Model
 
         $this->status = self::STATUS_COMPLETED;
         $this->save();
-
-        // Liberar la mesa si es una orden de servicio en local
-        if ($this->service_type === 'dine_in' && $this->table_id) {
-            $table = Table::find($this->table_id);
-            if ($table) {
-                $table->status = Table::STATUS_AVAILABLE;
-                $table->occupied_at = null;
-                $table->save();
-
-                // Registrar en el log
-                Log::info('Mesa liberada al completar la orden', [
-                    'order_id' => $this->id,
-                    'table_id' => $this->table_id,
-                    'table_number' => $table->number
-                ]);
-            }
-        }
 
         return true;
     }
@@ -393,24 +214,6 @@ class Order extends Model
 
         // Actualizar estado de los detalles de la orden
         $this->orderDetails()->update(['status' => 'cancelled']);
-
-        // Liberar la mesa al cancelar la orden
-        if ($this->service_type === 'dine_in' && $this->table_id) {
-            $table = Table::find($this->table_id);
-            if ($table) {
-                // Cambiar el estado de la mesa a disponible
-                $table->status = Table::STATUS_AVAILABLE;
-                $table->occupied_at = null;
-                $table->save();
-
-                // Registrar en el log
-                Log::info('Mesa liberada al cancelar orden', [
-                    'order_id' => $this->id,
-                    'table_id' => $this->table_id,
-                    'table_status' => $table->status
-                ]);
-            }
-        }
 
         return true;
     }
@@ -601,18 +404,10 @@ class Order extends Model
     public function registerPayment(string $paymentMethod, float $amount, ?string $reference = null): Payment
     {
         return \Illuminate\Support\Facades\DB::transaction(function () use ($paymentMethod, $amount, $reference) {
-            // Verificar si hay una caja abierta
-            $activeCashRegister = CashRegister::getOpenRegister();
-
-            // Validar requisitos según el método de pago
-            if ($paymentMethod === Payment::METHOD_CASH && !$activeCashRegister) {
-                throw new \Exception('No hay una caja abierta para registrar pagos en efectivo. Por favor, abra una caja primero.');
-            }
 
             // Crear el registro de pago
             $payment = new Payment([
                 'order_id' => $this->id,
-                'cash_register_id' => $activeCashRegister ? $activeCashRegister->id : null,
                 'payment_method' => $paymentMethod,
                 'amount' => $amount,
                 'reference_number' => $reference,
@@ -622,14 +417,6 @@ class Order extends Model
 
             $payment->save();
 
-            // Actualizar los totales de la caja según el método de pago
-            if ($activeCashRegister) {
-                $activeCashRegister->registerSale($paymentMethod, $amount);
-            }
-
-            // Registrar en el log según el método de pago
-            $this->logPaymentRegistration($payment, $activeCashRegister);
-
             // Emitir evento para que los listeners puedan actualizar otros componentes
             event(new \App\Events\PaymentRegistered($payment));
 
@@ -637,39 +424,7 @@ class Order extends Model
         });
     }
 
-    /**
-     * Registra en el log la información del pago.
-     *
-     * @param Payment $payment El pago registrado
-     * @param CashRegister|null $cashRegister La caja registradora asociada
-     * @return void
-     */
-    private function logPaymentRegistration(Payment $payment, ?CashRegister $cashRegister): void
-    {
-        $logContext = [
-            'order_id' => $this->id,
-            'payment_id' => $payment->id,
-            'payment_method' => $payment->payment_method,
-            'amount' => $payment->amount,
-            'has_active_register' => $cashRegister ? 'Sí' : 'No'
-        ];
 
-        if ($cashRegister) {
-            $logContext['cash_register_id'] = $cashRegister->id;
-        }
-
-        $methodName = match ($payment->payment_method) {
-            Payment::METHOD_CASH => 'efectivo',
-            Payment::METHOD_CARD => 'tarjeta',
-            Payment::METHOD_DIGITAL_WALLET => 'billetera digital',
-            Payment::METHOD_BANK_TRANSFER => 'transferencia bancaria',
-            Payment::METHOD_RAPPI => 'rappi',
-            Payment::METHOD_BITA_EXPRESS => 'bita express',
-            default => $payment->payment_method
-        };
-
-        \Illuminate\Support\Facades\Log::info("Pago con {$methodName} registrado", $logContext);
-    }
 
     /**
      * Obtiene el total pagado de la orden.

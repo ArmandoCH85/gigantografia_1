@@ -21,7 +21,7 @@ class ListPurchases extends ListRecords
     protected function getHeaderWidgets(): array
     {
         return [
-            \App\Filament\Widgets\PurchaseStatsWidget::class,
+            //
         ];
     }
 }

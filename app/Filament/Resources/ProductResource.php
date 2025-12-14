@@ -61,30 +61,10 @@ class ProductResource extends Resource
                                     ->maxLength(255),
                             ]),
 
-                        Forms\Components\Select::make('product_type')
-                            ->label('Tipo de Producto')
-                            ->required()
-                            ->options([
-                                'ingredient' => 'Ingrediente',
-                                'sale_item' => 'Artículo de Venta',
-                                'both' => 'Ambos'
-                            ])
-                            ->default('sale_item')
-                            ->native(false),
 
-                        Forms\Components\Select::make('ingredient_id')
-                            ->label('Ingrediente')
-                            ->options(function () {
-                                return \App\Models\Ingredient::query()
-                                    ->where('active', true)
-                                    ->pluck('name', 'id');
-                            })
-                            ->searchable()
-                            ->preload()
-                            ->searchDebounce(500)
-                            ->searchingMessage('Buscando ingredientes...')
-                            ->noSearchResultsMessage('No se encontraron ingredientes')
-                            ->visible(fn (callable $get) => in_array($get('product_type'), ['ingredient', 'both'])),
+                        Forms\Components\Hidden::make('product_type')
+                            ->default('sale_item'),
+
                     ])->columns(2),
 
                 Forms\Components\Section::make('Precios y Costos')
@@ -108,12 +88,11 @@ class ProductResource extends Resource
                             ->step(0.01),
 
                         Forms\Components\TextInput::make('current_stock')
-                            ->label('Stock Inicial')
+                            ->label('Stock Actual')
                             ->numeric()
                             ->default(0.00)
                             ->step(0.001)
-                            ->disabled()
-                            ->helperText('El stock inicial solo puede ser establecido al crear un ingrediente desde el módulo de compras.'),
+                            ->disabled(),
                     ])->columns(2),
 
                 Forms\Components\Section::make('Detalles Adicionales')
@@ -145,28 +124,14 @@ class ProductResource extends Resource
                             ->required()
                             ->default(true)
                             ->helperText('Determina si el producto está disponible para la venta'),
-
-                        Forms\Components\Toggle::make('has_recipe')
-                            ->label('Tiene Receta')
-                            ->required()
-                            ->default(false)
-                            ->helperText('Indica si el producto tiene una receta asociada'),
-                    ])->columns(3),
+                    ])->columns(2),
             ]);
     }
 
-    /**
-     * OPTIMIZACIÓN: Agregar eager loading para evitar N+1 queries
-     * y filtrar solo productos de venta, excluyendo ingredientes puros
-     */
     public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
     {
         return parent::getEloquentQuery()
-            ->with(['category', 'recipe'])
-            ->where(function(\Illuminate\Database\Eloquent\Builder $query) {
-                $query->where('product_type', Product::TYPE_SALE_ITEM)
-                      ->orWhere('product_type', Product::TYPE_BOTH);
-            });
+            ->with(['category']);
     }
 
     public static function table(Table $table): Table
@@ -196,19 +161,7 @@ class ProductResource extends Resource
                     ->sortable()
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('product_type')
-                    ->label('Tipo')
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'ingredient' => 'warning',
-                        'sale_item' => 'success',
-                        'both' => 'info',
-                    })
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'ingredient' => 'Ingrediente',
-                        'sale_item' => 'Artículo',
-                        'both' => 'Ambos',
-                    }),
+
 
                 Tables\Columns\TextColumn::make('sale_price')
                     ->label('Precio')
@@ -231,11 +184,7 @@ class ProductResource extends Resource
                     ->boolean()
                     ->sortable(),
 
-                Tables\Columns\IconColumn::make('has_recipe')
-                    ->label('Receta')
-                    ->boolean()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+
 
                 Tables\Columns\TextColumn::make('updated_at')
                     ->label('Actualizado')
@@ -244,13 +193,6 @@ class ProductResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('product_type')
-                    ->label('Tipo de Producto')
-                    ->options([
-                        'ingredient' => 'Ingrediente',
-                        'sale_item' => 'Artículo de Venta',
-                        'both' => 'Ambos'
-                    ]),
                 Tables\Filters\TernaryFilter::make('active')
                     ->label('Activo')
                     ->boolean(),
@@ -291,6 +233,6 @@ class ProductResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return '🍽️ Menú y Carta';
+        return '📦 Productos';
     }
 }

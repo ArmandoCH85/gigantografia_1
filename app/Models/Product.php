@@ -19,9 +19,7 @@ class Product extends Model
     /**
      * Los tipos de productos disponibles.
      */
-    const TYPE_INGREDIENT = 'ingredient';
     const TYPE_SALE_ITEM = 'sale_item';
-    const TYPE_BOTH = 'both';
 
     /**
      * Los atributos que son asignables masivamente.
@@ -38,7 +36,6 @@ class Product extends Model
         'product_type',
         'category_id',
         'active',
-        'has_recipe',
         'image_path',
         'available'
     ];
@@ -91,27 +88,11 @@ class Product extends Model
     }
 
     /**
-     * Obtiene la receta asociada a este producto.
-     */
-    public function recipe()
-    {
-        return $this->hasOne(Recipe::class);
-    }
-
-    /**
-     * Verifica si el producto es un ingrediente.
-     */
-    public function isIngredient(): bool
-    {
-        return in_array($this->product_type, [self::TYPE_INGREDIENT, self::TYPE_BOTH]);
-    }
-
-    /**
      * Verifica si el producto es un artículo de venta.
      */
     public function isSaleItem(): bool
     {
-        return in_array($this->product_type, [self::TYPE_SALE_ITEM, self::TYPE_BOTH]);
+        return $this->product_type === self::TYPE_SALE_ITEM;
     }
 
     /**
@@ -194,57 +175,25 @@ class Product extends Model
      */
     public function addStock(float $quantity, float $unitCost, ?int $warehouseId = null, ?string $expiryDate = null, ?int $purchaseId = null)
     {
-        // Si es un ingrediente, crear un nuevo registro de stock
-        if ($this->isIngredient()) {
-            // Buscar el ingrediente correspondiente por código
-            $ingredient = Ingredient::where('code', $this->code)->first();
-            
-            if (!$ingredient) {
-                throw new \Exception("No se encontró el ingrediente correspondiente para el producto: {$this->name} (código: {$this->code})");
-            }
-            
-            // Crear un nuevo registro de stock
-            $stock = IngredientStock::create([
-                'ingredient_id' => $ingredient->id,
-                'warehouse_id' => $warehouseId ?? Warehouse::where('is_default', true)->first()?->id,
-                'quantity' => $quantity,
-                'unit_cost' => $unitCost,
-                'expiry_date' => $expiryDate,
-                'status' => IngredientStock::STATUS_AVAILABLE,
-                'purchase_id' => $purchaseId
-            ]);
+        // Crear registro en ProductStock y actualizar el stock
+        $stock = ProductStock::create([
+            'product_id' => $this->id,
+            'warehouse_id' => $warehouseId ?? Warehouse::where('is_default', true)->first()?->id,
+            'quantity' => $quantity,
+            'unit_cost' => $unitCost,
+            'expiry_date' => $expiryDate,
+            'status' => 'available',
+            'purchase_id' => $purchaseId
+        ]);
 
-            // Actualizar el stock total y el costo promedio del ingrediente
-            $this->current_stock += $quantity;
+        $this->current_stock += $quantity;
 
-            // Calcular el nuevo costo promedio
-            $totalCost = ($this->current_stock - $quantity) * $this->current_cost + $quantity * $unitCost;
-            $this->current_cost = $this->current_stock > 0 ? $totalCost / $this->current_stock : $unitCost;
+        // Calcular el nuevo costo promedio
+        $totalCost = ($this->current_stock - $quantity) * $this->current_cost + $quantity * $unitCost;
+        $this->current_cost = $this->current_stock > 0 ? $totalCost / $this->current_stock : $unitCost;
 
-            $this->save();
+        $this->save();
 
-            return $stock;
-        } else {
-            // Si es un producto normal, crear registro en ProductStock y actualizar el stock
-            $stock = ProductStock::create([
-                'product_id' => $this->id,
-                'warehouse_id' => $warehouseId ?? Warehouse::where('is_default', true)->first()?->id,
-                'quantity' => $quantity,
-                'unit_cost' => $unitCost,
-                'expiry_date' => $expiryDate,
-                'status' => 'available',
-                'purchase_id' => $purchaseId
-            ]);
-
-            $this->current_stock += $quantity;
-
-            // Calcular el nuevo costo promedio
-            $totalCost = ($this->current_stock - $quantity) * $this->current_cost + $quantity * $unitCost;
-            $this->current_cost = $this->current_stock > 0 ? $totalCost / $this->current_stock : $unitCost;
-
-            $this->save();
-
-            return $stock;
-        }
+        return $stock;
     }
 }

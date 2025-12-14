@@ -76,12 +76,12 @@ class PurchaseResource extends Resource
                                             ->afterStateUpdated(function ($state, callable $set) {
                                                 if (strlen($state) === 11) {
                                                     $ruc = $state;
-                                                    
+
                                                     try {
                                                         // Buscar usando RucLookupService (servicio correcto para consultar RUC)
                                                         $rucService = app(\App\Services\RucLookupService::class);
                                                         $rucInfo = $rucService->lookupRuc($ruc);
-                                                        
+
                                                         if ($rucInfo) {
                                                             // Guardar en la base de datos
                                                             $supplier = \App\Models\Supplier::updateOrCreate(
@@ -172,7 +172,7 @@ class PurchaseResource extends Resource
                                             ->required()
                                             ->searchable()
                                             ->preload()
-                                            ->default(function() {
+                                            ->default(function () {
                                                 return \App\Models\Warehouse::where('is_default', true)->first()?->id;
                                             }),
                                     ]),
@@ -241,7 +241,8 @@ class PurchaseResource extends Resource
                             ->addActionLabel('➕ AGREGAR PRODUCTO')
                             ->collapsible()
                             ->collapsed()
-                            ->itemLabel(fn (array $state): ?string =>
+                            ->itemLabel(
+                                fn(array $state): ?string =>
                                 $state['product_id']
                                     ? '📦 ' . \App\Models\Product::find($state['product_id'])?->name . ' - ' . ($state['quantity'] ?? '?') . ' x S/' . ($state['unit_cost'] ?? '0')
                                     : null
@@ -250,9 +251,9 @@ class PurchaseResource extends Resource
                                 Forms\Components\Grid::make(5)
                                     ->schema([
                                         Forms\Components\Select::make('product_id')
-                                            ->label('🥫 Producto')
+                                            ->label('📦 Producto')
                                             ->placeholder('Buscar...')
-                                            ->options(\App\Models\Product::whereIn('product_type', ['ingredient', 'both'])->pluck('name', 'id'))
+                                            ->options(\App\Models\Product::where('active', true)->pluck('name', 'id'))
                                             ->required()
                                             ->searchable()
                                             ->reactive()
@@ -263,161 +264,6 @@ class PurchaseResource extends Resource
                                                         $set('unit_cost', $product->current_cost ?? 0);
                                                     }
                                                 }
-                                            })
-                                            ->createOptionForm([
-                                                Forms\Components\Section::make('🆕 NUEVO PRODUCTO')
-                                                    ->description('Complete los datos básicos del producto')
-                                                    ->schema([
-                                                        Forms\Components\Grid::make(2)
-                                                            ->schema([
-                                                                Forms\Components\TextInput::make('code')
-                                                                    ->label('🏷️ Código')
-                                                                    ->placeholder('PROD001')
-                                                                    ->required()
-                                                                    ->unique('products', 'code')
-                                                                    ->maxLength(20),
-                                                                Forms\Components\TextInput::make('name')
-                                                                    ->label('📝 Nombre')
-                                                                    ->placeholder('Ej: Harina de trigo')
-                                                                    ->required()
-                                                                    ->maxLength(255),
-                                                            ]),
-                                                        Forms\Components\Grid::make(2)
-                                                            ->schema([
-                                                                Forms\Components\Select::make('product_type')
-                                                                    ->label('📂 Tipo')
-                                                                    ->required()
-                                                                    ->options([
-                                                                        'ingredient' => '🥫 Ingrediente',
-                                                                        'both' => '🥤 Producto/Ingrediente'
-                                                                    ])
-                                                                    ->default('ingredient'),
-                                                                Forms\Components\Select::make('category_id')
-                                                                    ->label('📁 Categoría')
-                                                                    ->placeholder('Seleccione...')
-                                                                    ->options(\App\Models\ProductCategory::pluck('name', 'id'))
-                                                                    ->searchable()
-                                                                    ->preload()
-                                                                    ->createOptionForm([
-                                                                        Forms\Components\TextInput::make('name')
-                                                                            ->label('Nombre')
-                                                                            ->placeholder('Ej: Bebidas')
-                                                                            ->required()
-                                                                            ->maxLength(50),
-                                                                    ])
-                                                                    ->createOptionUsing(function (array $data) {
-                                                                        return \App\Models\ProductCategory::create([
-                                                                            'name' => $data['name'],
-                                                                            'description' => $data['description'] ?? null,
-                                                                        ])->id;
-                                                                    }),
-                                                            ]),
-                                                        Forms\Components\Grid::make(2)
-                                                            ->schema([
-                                                                Forms\Components\TextInput::make('current_cost')
-                                                                    ->label('💵 Costo Unitario')
-                                                                    ->placeholder('0.00')
-                                                                    ->required()
-                                                                    ->numeric()
-                                                                    ->prefix('S/')
-                                                                    ->default(0),
-                                                                Forms\Components\TextInput::make('current_stock')
-                                                                    ->label('📦 Stock Inicial')
-                                                                    ->placeholder('1.000')
-                                                                    ->numeric()
-                                                                    ->default(1)
-                                                                    ->required()
-                                                                    ->minValue(0.001)
-                                                                    ->step(0.001),
-                                                            ]),
-                                                        Forms\Components\Textarea::make('description')
-                                                            ->label('📝 Descripción')
-                                                            ->placeholder('Descripción del producto...')
-                                                            ->maxLength(255)
-                                                            ->rows(2)
-                                                            ->columnSpanFull(),
-                                                        Forms\Components\Hidden::make('sale_price')
-                                                            ->default(0),
-                                                        Forms\Components\Hidden::make('active')
-                                                            ->default(true),
-                                                    ])
-                                                    ->columns(2)
-                                            ])
-                                            ->createOptionAction(function (Forms\Components\Actions\Action $action) {
-                                                return $action
-                                                    ->label('➕ CREAR PRODUCTO')
-                                                    ->icon('heroicon-m-plus-circle')
-                                                    ->color('success')
-                                                    ->modalHeading('🆕 REGISTRAR NUEVO PRODUCTO')
-                                                    ->modalDescription('Complete los datos para agregar un nuevo producto')
-                                                    ->modalWidth('2xl');
-                                            })
-                                            ->createOptionUsing(function (array $data) {
-                                                // Asegurarse de que solo se creen ingredientes o productos de tipo "both"
-                                                if (!in_array($data['product_type'], ['ingredient', 'both'])) {
-                                                    $data['product_type'] = 'ingredient';
-                                                }
-
-                                                // Preparar los datos para crear el producto
-                                                $productData = [
-                                                    'code' => $data['code'],
-                                                    'name' => $data['name'],
-                                                    'description' => $data['description'] ?? null,
-                                                    'product_type' => $data['product_type'],
-                                                    'current_cost' => $data['current_cost'],
-                                                    'sale_price' => $data['sale_price'] ?? 0,
-                                                    'current_stock' => $data['current_stock'] ?? 0,
-                                                    'active' => $data['active'] ?? true,
-                                                    'available' => true,
-                                                ];
-
-                                                // Solo agregar category_id si es un producto tipo 'both' (gaseosas)
-                                                if ($data['product_type'] === 'both' && isset($data['category_id'])) {
-                                                    $productData['category_id'] = $data['category_id'];
-                                                } else {
-                                                    // Para ingredientes, usar una categoría por defecto
-                                                    $ingredientCategory = \App\Models\ProductCategory::firstOrCreate(
-                                                        ['name' => 'Ingredientes'],
-                                                        ['description' => 'Categoría para ingredientes de cocina']
-                                                    );
-                                                    $productData['category_id'] = $ingredientCategory->id;
-                                                }
-
-                                                // Crear el producto
-                                                $product = \App\Models\Product::create($productData);
-
-                                                // Cuando se crea un ingrediente desde compras, siempre se debe crear con stock inicial
-                                                if ($product->isIngredient()) {
-                                                    // Crear el registro correspondiente en la tabla ingredients
-                                                    $ingredient = \App\Models\Ingredient::create([
-                                                        'name' => $data['name'],
-                                                        'code' => $data['code'],
-                                                        'description' => $data['description'] ?? null,
-                                                        'unit_of_measure' => 'unidad',
-                                                        'min_stock' => 0,
-                                                        'current_stock' => $data['current_stock'] ?? 0,
-                                                        'current_cost' => $data['current_cost'],
-                                                        'supplier_id' => null,
-                                                        'active' => $data['active'] ?? true
-                                                    ]);
-
-                                                    // Obtener el almacén predeterminado
-                                                    $defaultWarehouse = \App\Models\Warehouse::where('is_default', true)->first();
-
-                                                    if ($defaultWarehouse) {
-                                                        // Crear un registro de stock para el ingrediente
-                                                        \App\Models\IngredientStock::create([
-                                                            'ingredient_id' => $ingredient->id,
-                                                            'warehouse_id' => $defaultWarehouse->id,
-                                                            'quantity' => $data['current_stock'] ?? 0,
-                                                            'unit_cost' => $data['current_cost'],
-                                                            'expiry_date' => $data['expiry_date'] ?? null,
-                                                            'status' => 'available'
-                                                        ]);
-                                                    }
-                                                }
-
-                                                return $product->id;
                                             }),
 
                                         Forms\Components\TextInput::make('quantity')
@@ -428,14 +274,14 @@ class PurchaseResource extends Resource
                                             ->minValue(0.001)
                                             ->step(0.001)
                                             ->default(1)
-                                            ->formatStateUsing(fn ($state) => $state ? number_format((float)$state, 3, '.', '') : '1')
+                                            ->formatStateUsing(fn($state) => $state ? number_format((float)$state, 3, '.', '') : '1')
                                             ->reactive()
                                             ->afterStateUpdated(function ($state, $get, callable $set) {
                                                 $quantity = (float) ($state ?? 0);
                                                 $unitCost = (float) ($get('unit_cost') ?? 0);
                                                 $includeIgv = $get('include_igv') ?? false;
                                                 $baseSubtotal = $quantity * $unitCost;
-                                                
+
                                                 if ($includeIgv) {
                                                     $igvPercent = \App\Models\ElectronicBillingConfig::getIgvPercent();
                                                     $igvFactor = 1 + ($igvPercent / 100);
@@ -443,14 +289,14 @@ class PurchaseResource extends Resource
                                                 } else {
                                                     $subtotal = $baseSubtotal;
                                                 }
-                                                
+
                                                 $set('subtotal', round($subtotal, 2));
-                                                
+
                                                 // Actualizar totales generales
                                                 $details = $get('../../details') ?? [];
                                                 $totalSubtotal = collect($details)->sum(fn($item) => $item['subtotal'] ?? 0);
                                                 $totalTax = 0;
-                                                
+
                                                 foreach ($details as $detail) {
                                                     if ($detail['include_igv'] ?? false) {
                                                         $quantity = (float) ($detail['quantity'] ?? 0);
@@ -461,7 +307,7 @@ class PurchaseResource extends Resource
                                                         $totalTax += $itemTax;
                                                     }
                                                 }
-                                                
+
                                                 $set('../../subtotal', round($totalSubtotal - $totalTax, 2));
                                                 $set('../../tax', round($totalTax, 2));
                                                 $set('../../total', round($totalSubtotal, 2));
@@ -474,14 +320,14 @@ class PurchaseResource extends Resource
                                             ->numeric()
                                             ->prefix('S/')
                                             ->default(0)
-                                            ->formatStateUsing(fn ($state) => $state ? number_format((float)$state, 2, '.', '') : '0.00')
+                                            ->formatStateUsing(fn($state) => $state ? number_format((float)$state, 2, '.', '') : '0.00')
                                             ->reactive()
                                             ->afterStateUpdated(function ($state, $get, callable $set) {
                                                 $quantity = (float) ($get('quantity') ?? 0);
                                                 $unitCost = (float) ($state ?? 0);
                                                 $includeIgv = $get('include_igv') ?? false;
                                                 $baseSubtotal = $quantity * $unitCost;
-                                                
+
                                                 if ($includeIgv) {
                                                     $igvPercent = \App\Models\ElectronicBillingConfig::getIgvPercent();
                                                     $igvFactor = 1 + ($igvPercent / 100);
@@ -489,14 +335,14 @@ class PurchaseResource extends Resource
                                                 } else {
                                                     $subtotal = $baseSubtotal;
                                                 }
-                                                
+
                                                 $set('subtotal', round($subtotal, 2));
-                                                
+
                                                 // Actualizar totales generales
                                                 $details = $get('../../details') ?? [];
                                                 $totalSubtotal = collect($details)->sum(fn($item) => $item['subtotal'] ?? 0);
                                                 $totalTax = 0;
-                                                
+
                                                 foreach ($details as $detail) {
                                                     if ($detail['include_igv'] ?? false) {
                                                         $quantity = (float) ($detail['quantity'] ?? 0);
@@ -507,7 +353,7 @@ class PurchaseResource extends Resource
                                                         $totalTax += $itemTax;
                                                     }
                                                 }
-                                                
+
                                                 $set('../../subtotal', round($totalSubtotal - $totalTax, 2));
                                                 $set('../../tax', round($totalTax, 2));
                                                 $set('../../total', round($totalSubtotal, 2));
@@ -525,7 +371,7 @@ class PurchaseResource extends Resource
                                                 $quantity = (float) ($get('quantity') ?? 0);
                                                 $unitCost = (float) ($get('unit_cost') ?? 0);
                                                 $baseSubtotal = $quantity * $unitCost;
-                                                
+
                                                 if ($state) {
                                                     $igvPercent = \App\Models\ElectronicBillingConfig::getIgvPercent();
                                                     $igvFactor = 1 + ($igvPercent / 100);
@@ -533,14 +379,14 @@ class PurchaseResource extends Resource
                                                 } else {
                                                     $subtotal = $baseSubtotal;
                                                 }
-                                                
+
                                                 $set('subtotal', round($subtotal, 2));
-                                                
+
                                                 // Actualizar totales generales
                                                 $details = $get('../../details') ?? [];
                                                 $totalSubtotal = collect($details)->sum(fn($item) => $item['subtotal'] ?? 0);
                                                 $totalTax = 0;
-                                                
+
                                                 foreach ($details as $detail) {
                                                     if ($detail['include_igv'] ?? false) {
                                                         $quantity = (float) ($detail['quantity'] ?? 0);
@@ -551,7 +397,7 @@ class PurchaseResource extends Resource
                                                         $totalTax += $itemTax;
                                                     }
                                                 }
-                                                
+
                                                 $set('../../subtotal', round($totalSubtotal - $totalTax, 2));
                                                 $set('../../tax', round($totalTax, 2));
                                                 $set('../../total', round($totalSubtotal, 2));
@@ -564,7 +410,7 @@ class PurchaseResource extends Resource
                                             ->prefix('S/')
                                             ->disabled()
                                             ->dehydrated()
-                                            ->formatStateUsing(fn ($state) => $state ? number_format((float)$state, 2, '.', '') : '0.00'),
+                                            ->formatStateUsing(fn($state) => $state ? number_format((float)$state, 2, '.', '') : '0.00'),
                                     ]),
                             ])
                             ->columns(1)
@@ -576,7 +422,7 @@ class PurchaseResource extends Resource
                                 $details = $get('details') ?? [];
                                 $totalSubtotal = collect($details)->sum(fn($item) => $item['subtotal'] ?? 0);
                                 $totalTax = 0;
-                                
+
                                 foreach ($details as $detail) {
                                     if ($detail['include_igv'] ?? false) {
                                         $quantity = (float) ($detail['quantity'] ?? 0);
@@ -587,7 +433,7 @@ class PurchaseResource extends Resource
                                         $totalTax += $itemTax;
                                     }
                                 }
-                                
+
                                 $set('subtotal', round($totalSubtotal - $totalTax, 2));
                                 $set('tax', round($totalTax, 2));
                                 $set('total', round($totalSubtotal, 2));
@@ -610,7 +456,7 @@ class PurchaseResource extends Resource
                                     ->dehydrated()
                                     ->reactive()
                                     ->helperText('Monto sin impuestos'),
-                                    
+
                                 Forms\Components\TextInput::make('tax')
                                     ->label('🧾 IGV')
                                     ->numeric()
@@ -620,7 +466,7 @@ class PurchaseResource extends Resource
                                     ->dehydrated()
                                     ->reactive()
                                     ->helperText('Impuesto General a las Ventas'),
-                                    
+
                                 Forms\Components\TextInput::make('total')
                                     ->label('💰 TOTAL A PAGAR')
                                     ->numeric()
@@ -676,7 +522,7 @@ class PurchaseResource extends Resource
 
                 Tables\Columns\TextColumn::make('document_type')
                     ->label('TIPO DOCUMENTO')
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                    ->formatStateUsing(fn(string $state): string => match ($state) {
                         'invoice' => 'FACTURA',
                         'receipt' => 'BOLETA',
                         'ticket' => 'TICKET',
@@ -686,7 +532,7 @@ class PurchaseResource extends Resource
                     })
                     ->sortable()
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
+                    ->color(fn(string $state): string => match ($state) {
                         'invoice' => 'primary',
                         'receipt' => 'success',
                         'ticket' => 'warning',
@@ -712,25 +558,25 @@ class PurchaseResource extends Resource
                     ->sortable()
                     ->alignEnd()
                     ->weight('bold')
-                    ->color(fn ($record): string => $record->status === 'completed' ? 'success' : 'gray-600')
+                    ->color(fn($record): string => $record->status === 'completed' ? 'success' : 'gray-600')
                     ->size('lg'),
 
                 Tables\Columns\TextColumn::make('status')
                     ->label('ESTADO COMPRA')
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                    ->formatStateUsing(fn(string $state): string => match ($state) {
                         'pending' => 'PENDIENTE',
                         'completed' => 'COMPLETADO',
                         'cancelled' => 'ANULADO',
                         default => $state,
                     })
                     ->badge()
-                    ->icon(fn (string $state): string => match ($state) {
+                    ->icon(fn(string $state): string => match ($state) {
                         'pending' => 'heroicon-o-clock',
                         'completed' => 'heroicon-o-check-circle',
                         'cancelled' => 'heroicon-o-x-circle',
                         default => 'heroicon-o-question-mark-circle',
                     })
-                    ->color(fn (string $state): string => match ($state) {
+                    ->color(fn(string $state): string => match ($state) {
                         'pending' => 'warning',
                         'completed' => 'success',
                         'cancelled' => 'danger',
@@ -785,11 +631,11 @@ class PurchaseResource extends Resource
                         return $query
                             ->when(
                                 $data['from_date'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('purchase_date', '>=', $date),
+                                fn(Builder $query, $date): Builder => $query->whereDate('purchase_date', '>=', $date),
                             )
                             ->when(
                                 $data['to_date'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('purchase_date', '<=', $date),
+                                fn(Builder $query, $date): Builder => $query->whereDate('purchase_date', '<=', $date),
                             );
                     })
                     ->indicateUsing(function (array $data): array {
@@ -821,7 +667,7 @@ class PurchaseResource extends Resource
                         // Redirigir a página de detalles o mostrar modal
                         return redirect()->to(route('filament.admin.resources.purchases.edit', $record));
                     })
-                    ->visible(fn ($record): bool => $record->details()->count() > 0),
+                    ->visible(fn($record): bool => $record->details()->count() > 0),
 
                 Tables\Actions\Action::make('duplicate_purchase')
                     ->label('DUPLICAR')
@@ -835,14 +681,14 @@ class PurchaseResource extends Resource
                         $newPurchase->document_number = $record->document_number . ' (COPIA)';
                         $newPurchase->status = 'pending';
                         $newPurchase->save();
-                        
+
                         // Duplicar detalles
                         foreach ($record->details as $detail) {
                             $newDetail = $detail->replicate();
                             $newDetail->purchase_id = $newPurchase->id;
                             $newDetail->save();
                         }
-                        
+
                         \Filament\Notifications\Notification::make()
                             ->title('COMPRA DUPLICADA')
                             ->body('La compra ha sido duplicada exitosamente')
@@ -877,7 +723,7 @@ class PurchaseResource extends Resource
                                     $record->update(['status' => 'completed']);
                                 }
                             });
-                            
+
                             \Filament\Notifications\Notification::make()
                                 ->title('COMPRAS ACTUALIZADAS')
                                 ->body(count($records) . ' compras marcadas como COMPLETADAS')
@@ -890,8 +736,9 @@ class PurchaseResource extends Resource
                         ->modalDescription('Se actualizará el estado de las compras seleccionadas a COMPLETADO.')
                         ->modalSubmitActionLabel('SÍ, COMPLETAR')
                         ->modalCancelActionLabel('CANCELAR')
-                        ->visible(fn (): bool => auth()->user()->can('update_purchase')),
+                        ->visible(fn(): bool => auth()->user()->can('update_purchase')),
 
+                    /*
                     Tables\Actions\BulkAction::make('export_selected')
                         ->label('EXPORTAR SELECCIÓN')
                         ->icon('heroicon-o-arrow-down-tray')
@@ -904,6 +751,7 @@ class PurchaseResource extends Resource
                                 ->fileName('compras-' . now()->format('Y-m-d') . '.xlsx');
                         })
                         ->deselectRecordsAfterCompletion(),
+                    */
                 ]),
             ])
             ->emptyStateHeading('NO HAY COMPRAS REGISTRADAS')
@@ -932,5 +780,4 @@ class PurchaseResource extends Resource
             'edit' => Pages\EditPurchase::route('/{record}/edit'),
         ];
     }
-
 }
