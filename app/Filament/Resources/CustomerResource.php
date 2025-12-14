@@ -32,98 +32,139 @@ class CustomerResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Información de Identificación')
-                    ->description('Datos de identificación del cliente')
-                    ->icon('heroicon-o-identification')
-                    ->columns(2)
+                Forms\Components\Grid::make(3)
                     ->schema([
-                        Forms\Components\Select::make('document_type')
-                            ->label('Tipo de Documento')
-                            ->options(Customer::DOCUMENT_TYPES)
-                            ->default('DNI')
-                            ->reactive(),
+                        // Columna Principal
+                        Forms\Components\Group::make()
+                            ->columnSpan(['lg' => 2])
+                            ->schema([
+                                Forms\Components\Section::make('Perfil del Cliente')
+                                    ->description('Información principal e identidad comercial')
+                                    ->icon('heroicon-m-user-circle')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('name')
+                                            ->label('Razón Social / Nombre Completo')
+                                            ->required()
+                                            ->maxLength(255)
+                                            ->prefixIcon('heroicon-m-user')
+                                            ->columnSpanFull(),
 
-                        Forms\Components\TextInput::make('document_number')
-                            ->label('Número de Documento')
-                            ->maxLength(15)
-                            ->placeholder(
-                                fn(callable $get) =>
-                                $get('document_type') === 'DNI'
-                                    ? '12345678'
-                                    : '20123456789'
-                            )
-                            ->rules([
-                                fn(callable $get): \Closure => function (string $attribute, $value, \Closure $fail) use ($get) {
-                                    $docType = $get('document_type');
-                                    
-                                    if (empty($value)) return;
+                                        Forms\Components\Grid::make(2)
+                                            ->schema([
+                                                Forms\Components\Select::make('document_type')
+                                                    ->label('Tipo de Documento')
+                                                    ->options(Customer::DOCUMENT_TYPES)
+                                                    ->default('DNI')
+                                                    ->selectablePlaceholder(false)
+                                                    ->live(),
 
-                                    if ($docType === 'DNI' && strlen($value) !== 8) {
-                                        $fail('El DNI debe tener 8 dígitos.');
-                                    } elseif ($docType === 'RUC' && strlen($value) !== 11) {
-                                        $fail('El RUC debe tener 11 dígitos.');
-                                    }
-                                },
+                                                Forms\Components\TextInput::make('document_number')
+                                                    ->label('Número de Documento')
+                                                    ->maxLength(15)
+                                                    ->prefixIcon('heroicon-m-identification')
+                                                    ->placeholder(fn($get) => $get('document_type') === 'DNI' ? '00000000' : '20000000000')
+                                                    ->rules([
+                                                        fn($get) => function (string $attribute, $value, $fail) use ($get) {
+                                                            if (empty($value)) return;
+                                                            $type = $get('document_type');
+                                                            if ($type === 'DNI' && strlen($value) !== 8) $fail('El DNI debe tener 8 dígitos.');
+                                                            if ($type === 'RUC' && strlen($value) !== 11) $fail('El RUC debe tener 11 dígitos.');
+                                                        },
+                                                    ]),
+                                            ]),
+                                    ]),
+
+                                Forms\Components\Section::make('Contacto y Ubicación')
+                                    ->description('Canales de comunicación y dirección fiscal')
+                                    ->icon('heroicon-m-map-pin')
+                                    ->columns(2)
+                                    ->schema([
+                                        Forms\Components\TextInput::make('phone')
+                                            ->label('Teléfono / Celular')
+                                            ->tel()
+                                            ->required()
+                                            ->maxLength(20)
+                                            ->prefixIcon('heroicon-m-phone')
+                                            ->placeholder('999 999 999'),
+
+                                        Forms\Components\TextInput::make('email')
+                                            ->label('Correo Electrónico')
+                                            ->email()
+                                            ->maxLength(255)
+                                            ->prefixIcon('heroicon-m-envelope')
+                                            ->placeholder('contacto@empresa.com'),
+
+                                        Forms\Components\Textarea::make('address')
+                                            ->label('Dirección Fiscal')
+                                            ->rows(2)
+                                            ->maxLength(255)
+                                            ->columnSpanFull()
+                                            ->placeholder('Av. Principal 123, Oficina 404...'),
+
+                                        Forms\Components\Textarea::make('address_references')
+                                            ->label('Referencias')
+                                            ->rows(1)
+                                            ->maxLength(255)
+                                            ->columnSpanFull()
+                                            ->placeholder('Frente al parque...'),
+                                    ]),
                             ]),
 
-                        Forms\Components\TextInput::make('name')
-                            ->label('Nombre/Razón Social')
-                            ->required()
-                            ->maxLength(255)
-                            ->placeholder(
-                                fn(callable $get) =>
-                                $get('document_type') === 'DNI'
-                                    ? 'Nombre Completo'
-                                    : 'Razón Social de la Empresa'
-                            )
-                            ->columnSpan(2),
-                    ]),
+                        // Columna Lateral (Sidebar)
+                        Forms\Components\Group::make()
+                            ->columnSpan(['lg' => 1])
+                            ->schema([
+                                Forms\Components\Section::make('Clasificación')
+                                    ->icon('heroicon-m-tag')
+                                    ->schema([
+                                        Forms\Components\Select::make('customer_type')
+                                            ->label('Tipo de Cliente')
+                                            ->options([
+                                                'Particular' => 'Particular',
+                                                'Negocio' => 'Negocio',
+                                                'Empresa' => 'Empresa',
+                                                'Gobierno' => 'Gobierno',
+                                            ])
+                                            ->searchable()
+                                            ->preload(),
 
-                Forms\Components\Section::make('Información de Contacto')
-                    ->description('Datos para contactar al cliente')
-                    ->icon('heroicon-o-phone')
-                    ->columns(2)
-                    ->schema([
-                        Forms\Components\TextInput::make('phone')
-                            ->label('Teléfono')
-                            ->tel()
-                            ->required()
-                            ->maxLength(20)
-                            ->placeholder('999-999-999')
-                            ->suffixIcon('heroicon-m-phone'),
+                                        Forms\Components\Select::make('sales_channel')
+                                            ->label('Canal de Captación')
+                                            ->options([
+                                                'Redes Sociales' => 'Redes Sociales',
+                                                'Web' => 'Web',
+                                                'Presencial' => 'Presencial',
+                                                'Recomendación' => 'Recomendación',
+                                                'Ferias' => 'Ferias',
+                                            ])
+                                            ->searchable(),
 
-                        Forms\Components\TextInput::make('email')
-                            ->label('Correo Electrónico')
-                            ->email()
-                            ->maxLength(255)
-                            ->placeholder('cliente@ejemplo.com')
-                            ->suffixIcon('heroicon-m-envelope'),
+                                        Forms\Components\TextInput::make('price_tier_id')
+                                            ->label('Nivel de Precio')
+                                            ->numeric()
+                                            ->prefix('#'),
+                                    ]),
 
-                        Forms\Components\Textarea::make('address')
-                            ->label('Dirección')
-                            ->maxLength(255)
-                            ->placeholder('Dirección completa del cliente')
-                            ->columnSpan(2),
+                                Forms\Components\Section::make('Estado')
+                                    ->icon('heroicon-m-shield-check')
+                                    ->schema([
+                                        Forms\Components\Toggle::make('tax_validated')
+                                            ->label('Validado Fiscalmente')
+                                            ->onColor('success')
+                                            ->offColor('danger')
+                                            ->onIcon('heroicon-m-check')
+                                            ->offIcon('heroicon-m-x-mark'),
 
-                        Forms\Components\Textarea::make('address_references')
-                            ->label('Referencias de Dirección')
-                            ->maxLength(255)
-                            ->placeholder('Detalles adicionales para ubicar la dirección')
-                            ->columnSpan(2),
-                    ]),
+                                        Forms\Components\Placeholder::make('created_at')
+                                            ->label('Registrado el')
+                                            ->content(fn (?Customer $record): string => $record?->created_at?->diffForHumans() ?? '-'),
 
-                Forms\Components\Section::make('Información Fiscal')
-                    ->description('Datos fiscales y de facturación')
-                    ->icon('heroicon-o-document-text')
-                    ->schema([
-                        Forms\Components\Toggle::make('tax_validated')
-                            ->label('Validación Fiscal')
-                            ->helperText('Indica si los datos fiscales del cliente han sido validados')
-                            ->required()
-                            ->default(false)
-                            ->onIcon('heroicon-s-check-badge')
-                            ->offIcon('heroicon-s-x-mark'),
-                    ]),
+                                        Forms\Components\Placeholder::make('updated_at')
+                                            ->label('Última actualización')
+                                            ->content(fn (?Customer $record): string => $record?->updated_at?->diffForHumans() ?? '-'),
+                                    ]),
+                            ]),
+                    ])
             ]);
     }
 
