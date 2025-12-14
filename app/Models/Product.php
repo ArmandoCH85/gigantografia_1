@@ -19,7 +19,8 @@ class Product extends Model
     /**
      * Los tipos de productos disponibles.
      */
-    const TYPE_SALE_ITEM = 'sale_item';
+    const TYPE_SALE_ITEM = 'sale_item'; // Venta por unidad (stock)
+    const TYPE_SERVICE_GIGANTOGRAFIA = 'gigantografia'; // Venta por m2 (medidas)
 
     /**
      * Los atributos que son asignables masivamente.
@@ -93,6 +94,14 @@ class Product extends Model
     public function isSaleItem(): bool
     {
         return $this->product_type === self::TYPE_SALE_ITEM;
+    }
+
+    /**
+     * Verifica si el producto es un servicio de gigantografía (por m2).
+     */
+    public function isGigantografia(): bool
+    {
+        return $this->product_type === self::TYPE_SERVICE_GIGANTOGRAFIA;
     }
 
     /**

@@ -62,8 +62,21 @@ class ProductResource extends Resource
                             ]),
 
 
-                        Forms\Components\Hidden::make('product_type')
-                            ->default('sale_item'),
+                        Forms\Components\Select::make('product_type')
+                            ->label('Tipo de Producto')
+                            ->options([
+                                Product::TYPE_SALE_ITEM => 'Producto Estándar (Unidad)',
+                                Product::TYPE_SERVICE_GIGANTOGRAFIA => 'Gigantografía (Por m²)',
+                            ])
+                            ->required()
+                            ->default(Product::TYPE_SALE_ITEM)
+                            ->reactive()
+                            ->afterStateUpdated(
+                                fn($state, Forms\Set $set) =>
+                                $state === Product::TYPE_SERVICE_GIGANTOGRAFIA
+                                    ? $set('current_stock', 0)
+                                    : null
+                            ),
 
                     ])->columns(2),
 
@@ -71,7 +84,18 @@ class ProductResource extends Resource
                     ->description('Configure los precios y costos del producto')
                     ->schema([
                         Forms\Components\TextInput::make('sale_price')
-                            ->label('Precio de Venta')
+                            ->label(
+                                fn(Forms\Get $get) =>
+                                $get('product_type') === Product::TYPE_SERVICE_GIGANTOGRAFIA
+                                    ? 'Precio Base por m²'
+                                    : 'Precio Unitario'
+                            )
+                            ->helperText(
+                                fn(Forms\Get $get) =>
+                                $get('product_type') === Product::TYPE_SERVICE_GIGANTOGRAFIA
+                                    ? 'El precio final se calculará según las medidas (Ancho x Alto) y acabados.'
+                                    : 'Precio de venta por unidad.'
+                            )
                             ->required()
                             ->numeric()
                             ->prefix('S/')
@@ -79,7 +103,12 @@ class ProductResource extends Resource
                             ->step(0.01),
 
                         Forms\Components\TextInput::make('current_cost')
-                            ->label('Costo Actual')
+                            ->label(
+                                fn(Forms\Get $get) =>
+                                $get('product_type') === Product::TYPE_SERVICE_GIGANTOGRAFIA
+                                    ? 'Costo Base por m²'
+                                    : 'Costo Actual'
+                            )
                             ->required()
                             ->numeric()
                             ->prefix('S/')
@@ -92,7 +121,9 @@ class ProductResource extends Resource
                             ->numeric()
                             ->default(0.00)
                             ->step(0.001)
-                            ->disabled(),
+                            ->disabled(fn(Forms\Get $get) => $get('product_type') === Product::TYPE_SERVICE_GIGANTOGRAFIA)
+                            ->visible(fn(Forms\Get $get) => $get('product_type') !== Product::TYPE_SERVICE_GIGANTOGRAFIA)
+                            ->dehydrated(),
                     ])->columns(2),
 
                 Forms\Components\Section::make('Detalles Adicionales')

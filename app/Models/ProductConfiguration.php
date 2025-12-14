@@ -17,12 +17,7 @@ class ProductConfiguration extends Model
         'width',
         'height',
         'material_id',
-        'finish_1_id',
-        'finish_1_quantity',
-        'finish_2_id',
-        'finish_2_quantity',
-        'finish_3_id',
-        'finish_3_quantity',
+        'finishes', // Nuevo campo JSON
         'calculated_price'
     ];
 
@@ -30,9 +25,7 @@ class ProductConfiguration extends Model
         'width' => 'decimal:2',
         'height' => 'decimal:2',
         'calculated_price' => 'decimal:2',
-        'finish_1_quantity' => 'integer',
-        'finish_2_quantity' => 'integer',
-        'finish_3_quantity' => 'integer',
+        'finishes' => 'array', // Cast automático a array/json
     ];
 
     public function reference(): MorphTo
@@ -43,20 +36,5 @@ class ProductConfiguration extends Model
     public function material(): BelongsTo
     {
         return $this->belongsTo(ProductMaterial::class);
-    }
-
-    public function finish1(): BelongsTo
-    {
-        return $this->belongsTo(ProductFinish::class, 'finish_1_id');
-    }
-
-    public function finish2(): BelongsTo
-    {
-        return $this->belongsTo(ProductFinish::class, 'finish_2_id');
-    }
-
-    public function finish3(): BelongsTo
-    {
-        return $this->belongsTo(ProductFinish::class, 'finish_3_id');
     }
 }
