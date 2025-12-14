@@ -15,7 +15,7 @@
 
     {{-- Título principal estilo DaisyUI --}}
     <h1 class="pos-title">
-        Sistema POS
+        Sistema de Gestión
     </h1>
 
     {{-- Badge de seguridad minimalista --}}
