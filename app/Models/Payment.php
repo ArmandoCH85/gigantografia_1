@@ -22,6 +22,7 @@ class Payment extends Model
         'reference_number',
         'payment_datetime',
         'received_by',
+        'installment_number', // Número de adelanto (1-5)
     ];
 
     /**

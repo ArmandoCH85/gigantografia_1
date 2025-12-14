@@ -39,6 +39,8 @@ class Order extends Model
     protected $fillable = [
         'customer_id',
         'employee_id',
+        'designer_id', // Nuevo campo
+        'production_number', // Nuevo campo
         'order_datetime',
         'status',
         'subtotal',
@@ -48,7 +50,17 @@ class Order extends Model
         'notes',
         'billed',
         'payment_method',
-        'payment_amount'
+        'payment_amount',
+        'delivery_date', // Nuevo campo
+        'delivery_time', // Nuevo campo
+        'delivery_type', // Nuevo campo
+        'production_start_time', // Nuevo campo
+        'production_end_time', // Nuevo campo
+        'delivery_province', // Nuevo campo
+        'delivery_recipient_name', // Nuevo campo
+        'delivery_recipient_phone', // Nuevo campo
+        'delivery_recipient_dni', // Nuevo campo
+        'delivery_destination', // Nuevo campo
     ];
 
     /**
@@ -58,6 +70,7 @@ class Order extends Model
      */
     protected $casts = [
         'order_datetime' => 'datetime',
+        'delivery_date' => 'date', // Nuevo cast
         'subtotal' => 'decimal:2',
         'tax' => 'decimal:2',
         'discount' => 'decimal:2',
@@ -67,8 +80,6 @@ class Order extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime'
     ];
-
-
 
     /**
      * Obtiene el cliente asociado a la orden.
@@ -84,6 +95,14 @@ class Order extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    /**
+     * Obtiene el diseñador asignado a la orden.
+     */
+    public function designer(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'designer_id');
     }
 
     /**
@@ -107,7 +126,7 @@ class Order extends Model
         // Si no hay user, intentar buscar directamente
         if ($this->employee_id) {
             $user = User::find($this->employee_id);
-            return $user ? $user->name : "Usuario ID {$this->employee_id} no encontrado";
+            if ($user) return $user->name;
         }
 
         return 'Sin mesero asignado';
@@ -120,10 +139,6 @@ class Order extends Model
     {
         return $this->hasMany(OrderDetail::class);
     }
-
-
-
-
 
     /**
      * Devuelve si la orden está abierta.
@@ -146,43 +161,17 @@ class Order extends Model
      */
     public function isDelivery(): bool
     {
-        return $this->service_type === 'delivery';
+        return $this->delivery_type === 'tercero' || $this->delivery_type === 'instalacion'; // Ajustado a los nuevos tipos si aplica, o mantener lógica anterior
     }
 
     /**
      * Verifica si la orden es para consumo en el local.
      */
-    public function isDineIn(): bool
+    public function isLocalPickup(): bool
     {
-        return $this->service_type === 'dine_in';
+        return $this->delivery_type === 'local';
     }
 
-    /**
-     * Verifica si la orden es para llevar.
-     */
-    public function isTakeout(): bool
-    {
-        return $this->service_type === 'takeout';
-    }
-
-    /**
-     * Verifica si la orden es para auto-servicio.
-     */
-    public function isDriveThru(): bool
-    {
-        return $this->service_type === 'drive_thru';
-    }
-
-
-
-
-
-    /**
-     * Completa la orden, cambiando su estado a 'completed'.
-     * Solo se puede completar si está facturada.
-     *
-     * @return bool
-     */
     public function completeOrder(): bool
     {
         if (!$this->billed) {

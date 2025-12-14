@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use App\Models\Table;
+use App\Models\CashRegister;
 
 class Quotation extends Model
 {
@@ -55,7 +56,8 @@ class Quotation extends Model
         'notes',
         'terms_and_conditions',
         'payment_terms',
-        'order_id'
+        'order_id',
+        'commercial_employee_id' // Comercial asignado
     ];
 
     /**
@@ -103,6 +105,14 @@ class Quotation extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Obtiene el empleado comercial asignado a la cotización.
+     */
+    public function commercial(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'commercial_employee_id');
     }
 
     /**
@@ -196,7 +206,7 @@ class Quotation extends Model
     public function isExpired(): bool
     {
         return $this->status === self::STATUS_EXPIRED ||
-               ($this->valid_until < now() && !$this->isConverted());
+            ($this->valid_until < now() && !$this->isConverted());
     }
 
     /**

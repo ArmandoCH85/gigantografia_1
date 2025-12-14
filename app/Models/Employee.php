@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\DeliveryOrder;
 
 class Employee extends Model
 {
@@ -22,6 +23,7 @@ class Employee extends Model
         'phone',
         'address',
         'position',
+        'employee_role', // diseñador, comercial, responsable_produccion, supervisor
         'hire_date',
         'base_salary',
         'user_id',
@@ -85,5 +87,14 @@ class Employee extends Model
     public function isDeliveryPerson(): bool
     {
         return $this->position === 'Delivery';
+    }
+
+    /**
+     * Scope para filtrar empleados por rol específico.
+     * Roles: diseñador, comercial, responsable_produccion, supervisor
+     */
+    public function scopeByRole($query, string $role)
+    {
+        return $query->where('employee_role', $role);
     }
 }
