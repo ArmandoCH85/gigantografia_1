@@ -31,7 +31,7 @@ class ProductResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Section::make('Información Básica')
-                    ->description('Ingrese la información principal del producto')
+                    ->description('Defina el tipo de gigantografía (ej: Banner, Vinil, Lona). La configuración específica se hará en cada pedido.')
                     ->schema([
                         Forms\Components\TextInput::make('code')
                             ->label('Código')
@@ -43,10 +43,11 @@ class ProductResource extends Resource
                             ->unique(Product::class, 'code', ignoreRecord: true),
 
                         Forms\Components\TextInput::make('name')
-                            ->label('Nombre')
+                            ->label('Nombre del Tipo')
                             ->required()
                             ->maxLength(255)
-                            ->placeholder('Ingrese el nombre del producto'),
+                            ->placeholder('Ej: Banner, Vinil en soporte, Lona, etc.')
+                            ->helperText('Este es el nombre que verá el cliente al elegir el tipo de gigantografía'),
 
                         Forms\Components\Select::make('category_id')
                             ->label('Categoría')
@@ -85,7 +86,7 @@ class ProductResource extends Resource
                     ])->columns(2),
 
                 Forms\Components\Section::make('Precios y Costos')
-                    ->description('Configure los precios y costos del producto')
+                    ->description('Para gigantografías configurables, el precio final se calcula en cada pedido según material, medidas y acabados')
                     ->schema([
                         Forms\Components\TextInput::make('sale_price')
                             ->label('Precio de Referencia')
@@ -132,10 +133,12 @@ class ProductResource extends Resource
                     ])->columns(2),
 
                 Forms\Components\Section::make('Detalles Adicionales')
+                    ->description('Información complementaria del tipo de producto')
                     ->schema([
                         Forms\Components\Textarea::make('description')
                             ->label('Descripción')
-                            ->placeholder('Ingrese una descripción detallada del producto')
+                            ->placeholder('Ej: Ideal para exteriores, resistente a la intemperie, impresión de alta calidad...')
+                            ->helperText('Describa las características generales de este tipo de gigantografía')
                             ->rows(3)
                             ->columnSpanFull(),
 
