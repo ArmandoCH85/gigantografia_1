@@ -134,19 +134,7 @@ class UserResource extends Resource
                     ->sortable()
                     ->searchable()
                     ->label(trans('filament-users::user.resource.email')),
-                TextColumn::make('login_code')
-                    ->label('Código PIN')
-                    ->searchable()
-                    ->sortable()
-                    ->copyable()
-                    ->copyMessage('Código copiado')
-                    ->badge()
-                    ->color('primary'),
-                IconColumn::make('email_verified_at')
-                    ->boolean()
-                    ->sortable()
-                    ->searchable()
-                    ->label(trans('filament-users::user.resource.email_verified_at')),
+
                 TextColumn::make('created_at')
                     ->label(trans('filament-users::user.resource.created_at'))
                     ->dateTime('M j, Y')
