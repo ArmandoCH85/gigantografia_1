@@ -5,7 +5,6 @@ namespace App\Filament\Widgets;
 use Filament\Widgets\ChartWidget;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use App\Models\Order;
-use App\Models\CashRegister;
 use Carbon\Carbon;
 use App\Filament\Widgets\Concerns\DateRangeFilterTrait;
 
@@ -14,16 +13,14 @@ class SalesChartWidget extends ChartWidget
     use InteractsWithPageFilters;
     use DateRangeFilterTrait;
 
-    protected static ?string $heading = '📈 Tendencia de Ventas por Tipo';
+    protected static ?string $heading = '📈 Tendencia de Ventas';
 
     protected static ?int $sort = 2;
 
     protected static ?string $maxHeight = '400px';
 
-    // 📐 ANCHO COMPLETO PARA EL GRÁFICO
     protected int | string | array $columnSpan = 'full';
 
-    // 🔄 REACTIVIDAD A FILTROS DEL DASHBOARD
     protected static bool $isLazy = false;
 
     protected $listeners = [
@@ -38,38 +35,11 @@ class SalesChartWidget extends ChartWidget
         return [
             'datasets' => [
                 [
-                    'label' => '🍽️ Mesa',
-                    'data' => $data['mesa'],
+                    'label' => 'Ventas Totales',
+                    'data' => $data['values'],
                     'backgroundColor' => 'rgba(59, 130, 246, 0.1)', // Azul
                     'borderColor' => 'rgb(59, 130, 246)',
                     'pointBackgroundColor' => 'rgb(59, 130, 246)',
-                    'tension' => 0.4,
-                    'fill' => true,
-                ],
-                [
-                    'label' => '🚚 Delivery',
-                    'data' => $data['delivery'],
-                    'backgroundColor' => 'rgba(245, 158, 11, 0.1)', // Ámbar
-                    'borderColor' => 'rgb(245, 158, 11)',
-                    'pointBackgroundColor' => 'rgb(245, 158, 11)',
-                    'tension' => 0.4,
-                    'fill' => true,
-                ],
-                [
-                    'label' => '📱 Apps',
-                    'data' => $data['apps'],
-                    'backgroundColor' => 'rgba(147, 51, 234, 0.1)', // Púrpura
-                    'borderColor' => 'rgb(147, 51, 234)',
-                    'pointBackgroundColor' => 'rgb(147, 51, 234)',
-                    'tension' => 0.4,
-                    'fill' => true,
-                ],
-                [
-                    'label' => '🥡 Venta Directa',
-                    'data' => $data['directa'],
-                    'backgroundColor' => 'rgba(34, 197, 94, 0.1)', // Verde
-                    'borderColor' => 'rgb(34, 197, 94)',
-                    'pointBackgroundColor' => 'rgb(34, 197, 94)',
                     'tension' => 0.4,
                     'fill' => true,
                 ],
@@ -83,163 +53,27 @@ class SalesChartWidget extends ChartWidget
         return 'line';
     }
 
-    // 📊 OBTENER DATOS SEGÚN FILTRO DEL DASHBOARD
     private function getSalesData(): array
     {
         $labels = [];
-        $mesaData = [];
-        $deliveryData = [];
-        $directaData = [];
-        $appsData = [];
+        $values = [];
 
         $dates = $this->expandDailyDates();
 
         foreach ($dates as $date) {
             $labels[] = $date['label'];
 
-            // Determinar si esta fecha es HOY o en el futuro
-            $isToday = $date['date']->isToday() || $date['date']->isFuture();
+            $sales = Order::whereDate('created_at', $date['date'])
+                ->where('billed', true)
+                ->where('status', '!=', 'cancelled')
+                ->sum('total');
 
-            if ($isToday) {
-                // Para hoy: usar órdenes de cajas abiertas o sin caja, manteniendo desglose por tipo
-                
-                // 🍽️ VENTAS MESA
-                $mesaSales = Order::whereDate('created_at', $date['date'])
-                    ->where('service_type', 'dine_in')
-                    ->where('billed', true)
-                    ->where(function($q) {
-                        $q->whereHas('cashRegister', function ($subQ) {
-                            $subQ->where('is_active', CashRegister::STATUS_OPEN);
-                        })
-                        ->orWhereNull('cash_register_id');
-                    })
-                    ->sum('total');
-                $mesaData[] = (float) $mesaSales;
-
-                // 🚚 VENTAS DELIVERY
-                $deliverySales = Order::whereDate('created_at', $date['date'])
-                    ->where('service_type', 'delivery')
-                    ->where('billed', true)
-                    ->where(function($q) {
-                        $q->whereHas('cashRegister', function ($subQ) {
-                            $subQ->where('is_active', CashRegister::STATUS_OPEN);
-                        })
-                        ->orWhereNull('cash_register_id');
-                    })
-                    ->sum('total');
-                $deliveryData[] = (float) $deliverySales;
-
-                // 📱 VENTAS APPS (Rappi, Bita Express, etc.)
-                $appsSales = Order::whereDate('created_at', $date['date'])
-                    ->where('billed', true)
-                    ->where(function($q) {
-                        $q->whereHas('cashRegister', function ($subQ) {
-                            $subQ->where('is_active', CashRegister::STATUS_OPEN);
-                        })
-                        ->orWhereNull('cash_register_id');
-                    })
-                    ->whereHas('payments', function($query) {
-                        $query->whereIn('payment_method', ['rappi', 'bita_express', 'didi_food', 'pedidos_ya']);
-                    })
-                    ->sum('total');
-                $appsData[] = (float) $appsSales;
-
-                // 🥡 VENTA DIRECTA (takeout + sin mesa, EXCLUYENDO Apps)
-                $directaSales = Order::whereDate('created_at', $date['date'])
-                    ->where(function($query) {
-                        $query->where('service_type', 'takeout')
-                              ->orWhere(function($q) {
-                                  $q->where('service_type', 'dine_in')
-                                    ->whereNull('table_id');
-                              });
-                    })
-                    ->where('billed', true)
-                    ->where(function($q) {
-                        $q->whereHas('cashRegister', function ($subQ) {
-                            $subQ->where('is_active', CashRegister::STATUS_OPEN);
-                        })
-                        ->orWhereNull('cash_register_id');
-                    })
-                    ->whereDoesntHave('payments', function($query) {
-                        $query->whereIn('payment_method', ['rappi', 'bita_express', 'didi_food', 'pedidos_ya']);
-                    })
-                    ->sum('total');
-                $directaData[] = (float) $directaSales;
-                
-            } else {
-                // Para fechas pasadas: usar órdenes de cajas cerradas, manteniendo desglose por tipo
-                
-                // 🍽️ VENTAS MESA
-                $mesaSales = Order::whereDate('created_at', $date['date'])
-                    ->where('service_type', 'dine_in')
-                    ->where('billed', true)
-                    ->where(function($q) {
-                        $q->whereHas('cashRegister', function ($subQ) {
-                            $subQ->where('is_active', CashRegister::STATUS_CLOSED);
-                        })
-                        ->orWhereNull('cash_register_id');
-                    })
-                    ->sum('total');
-                $mesaData[] = (float) $mesaSales;
-
-                // 🚚 VENTAS DELIVERY
-                $deliverySales = Order::whereDate('created_at', $date['date'])
-                    ->where('service_type', 'delivery')
-                    ->where('billed', true)
-                    ->where(function($q) {
-                        $q->whereHas('cashRegister', function ($subQ) {
-                            $subQ->where('is_active', CashRegister::STATUS_CLOSED);
-                        })
-                        ->orWhereNull('cash_register_id');
-                    })
-                    ->sum('total');
-                $deliveryData[] = (float) $deliverySales;
-
-                // 📱 VENTAS APPS (Rappi, Bita Express, etc.)
-                $appsSales = Order::whereDate('created_at', $date['date'])
-                    ->where('billed', true)
-                    ->where(function($q) {
-                        $q->whereHas('cashRegister', function ($subQ) {
-                            $subQ->where('is_active', CashRegister::STATUS_CLOSED);
-                        })
-                        ->orWhereNull('cash_register_id');
-                    })
-                    ->whereHas('payments', function($query) {
-                        $query->whereIn('payment_method', ['rappi', 'bita_express', 'didi_food', 'pedidos_ya']);
-                    })
-                    ->sum('total');
-                $appsData[] = (float) $appsSales;
-
-                // 🥡 VENTA DIRECTA (takeout + sin mesa, EXCLUYENDO Apps)
-                $directaSales = Order::whereDate('created_at', $date['date'])
-                    ->where(function($query) {
-                        $query->where('service_type', 'takeout')
-                              ->orWhere(function($q) {
-                                  $q->where('service_type', 'dine_in')
-                                    ->whereNull('table_id');
-                              });
-                    })
-                    ->where('billed', true)
-                    ->where(function($q) {
-                        $q->whereHas('cashRegister', function ($subQ) {
-                            $subQ->where('is_active', CashRegister::STATUS_CLOSED);
-                        })
-                        ->orWhereNull('cash_register_id');
-                    })
-                    ->whereDoesntHave('payments', function($query) {
-                        $query->whereIn('payment_method', ['rappi', 'bita_express', 'didi_food', 'pedidos_ya']);
-                    })
-                    ->sum('total');
-                $directaData[] = (float) $directaSales;
-            }
+            $values[] = (float) $sales;
         }
 
         return [
             'labels' => $labels,
-            'mesa' => $mesaData,
-            'delivery' => $deliveryData,
-            'directa' => $directaData,
-            'apps' => $appsData,
+            'values' => $values,
         ];
     }
 
@@ -247,16 +81,20 @@ class SalesChartWidget extends ChartWidget
     {
         [$start, $end] = $this->resolveDateRange($this->filters ?? []);
         $dates = [];
-        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+
+        // Clonar para no modificar la referencia original si se usa
+        $current = $start->copy();
+
+        while ($current->lte($end)) {
             $dates[] = [
-                'date' => $date->copy(),
-                'label' => $start->equalTo($end) ? ($date->isToday() ? 'Hoy' : $date->format('d/m')) : ($start->diffInDays($end) <= 7 ? $date->format('d/m') : $date->format('d')),
+                'date' => $current->copy(),
+                'label' => $start->equalTo($end) ? ($current->isToday() ? 'Hoy' : $current->format('d/m')) : ($start->diffInDays($end) <= 7 ? $current->format('d/m') : $current->format('d')),
             ];
+            $current->addDay();
         }
         return $dates;
     }
 
-    // 🎨 OPCIONES AVANZADAS DEL GRÁFICO
     protected function getOptions(): array
     {
         return [

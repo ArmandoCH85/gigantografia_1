@@ -38,13 +38,7 @@ class AdminPanelProvider extends PanelProvider
             ->sidebarCollapsibleOnDesktop()
             ->sidebarWidth('16rem') // Ancho optimizado - balance perfecto
             ->collapsedSidebarWidth('4rem') // Ancho colapsado elegante
-            ->homeUrl(function () {
-                $user = Auth::user();
-                if ($user && $user->hasRole('waiter')) {
-                    return '/admin/mapa-mesas';
-                }
-                return '/admin';
-            })
+            ->homeUrl('/admin')
             ->maxContentWidth('full')
             ->sidebarFullyCollapsibleOnDesktop()
             ->brandName('')
@@ -78,8 +72,7 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Widgets\PaymentMethodsWidget::class,
                 \App\Filament\Widgets\SalesStatsWidget::class,
                 \App\Filament\Widgets\SalesChartWidget::class,
-                \App\Filament\Widgets\SalesOverviewWidget::class, // ✅ Widget agregado para resolver error de componente
-                \App\Filament\Widgets\SalesByUserWidget::class, // ✅ Widget agregado para resolver error de componente
+
                 \App\Filament\Widgets\TopProductsWidget::class,
                 \App\Filament\Widgets\SalesHoursWidget::class,
 
@@ -108,7 +101,7 @@ class AdminPanelProvider extends PanelProvider
             // Render Hooks para personalización del login POS
             ->renderHook(PanelsRenderHook::HEAD_END, fn(): string => '<link rel="preconnect" href="https://fonts.googleapis.com">' . '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' . '<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">' . '<link rel="stylesheet" href="' . asset('css/login-daisyui-compiled.css') . '">' . '<link rel="stylesheet" href="' . asset('css/custom-navigation.css') . '">' . '<script src="' . asset('js/custom-navigation.js') . '"></script>' . '<style id="admin-panel-typography-scale">.fi-body{font-size:17.5px;line-height:1.55;font-weight:400;font-family:"Manrope",Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}</style>')
             ->renderHook(PanelsRenderHook::AUTH_LOGIN_FORM_BEFORE, fn(): string => view('filament.auth.login-header')->render())
-            ->renderHook(PanelsRenderHook::AUTH_LOGIN_FORM_AFTER, fn(): string => '<div class="flex flex-col items-center gap-2 mt-4 text-sm text-gray-500">' . '<a href="' . url('/waiter/login') . '" class="text-primary-600 hover:underline">Ir al login de mesero</a>' . '</div>')
+
             // 🔗 Accesos rápidos en el HEADER (topbar)
             ->renderHook(PanelsRenderHook::TOPBAR_START, fn(): string => view('filament.topbar.quick-links')->render())
             ->renderHook(
@@ -787,7 +780,7 @@ class AdminPanelProvider extends PanelProvider
                         const colorMap = {
                             "dashboard": "#2563EB", // Azul corporativo
                             "pos-interface": "#059669", // Verde corporativo
-                            "mapa-mesas": "#059669", // Verde corporativo
+
                             "operaciones-caja": "#059669", // Verde corporativo
                             "caja": "#059669", // Verde corporativo para el nuevo módulo
                             "cash-register-report": "#059669", // Reportes de caja
@@ -795,7 +788,7 @@ class AdminPanelProvider extends PanelProvider
                             "reportes": "#D97706", // Naranja corporativo
                             "products": "#DC2626", // Rojo corporativo
                             "product-categories": "#DC2626", // Rojo corporativo
-                            "ingredients": "#DC2626", // Rojo corporativo
+
                             "users": "#0891B2", // Cian corporativo
                             "shield/roles": "#0891B2", // Cian corporativo
                             "configuracion": "#0891B2", // Cian corporativo

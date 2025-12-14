@@ -53,8 +53,7 @@ class Dashboard extends BaseDashboard
                 \App\Filament\Widgets\PaymentMethodsWidget::class,
                 \App\Filament\Widgets\TopProductsWidget::class,
 
-                // 💰 ROW 4: CAJA Y CONFIGURACIÓN (lado a lado)
-                \App\Filament\Widgets\CashRegisterStatsWidget::class,
+                // 💰 ROW 4: CONFIGURACIÓN
                 \App\Filament\Widgets\SunatConfigurationOverview::class,
             ];
         }
@@ -71,9 +70,6 @@ class Dashboard extends BaseDashboard
                 // 💳 ROW 3: PAGOS Y PRODUCTOS (lado a lado)
                 \App\Filament\Widgets\PaymentMethodsWidget::class,
                 \App\Filament\Widgets\TopProductsWidget::class,
-
-                // 💰 ROW 4: ESTADO DE CAJAS
-                \App\Filament\Widgets\CashRegisterStatsWidget::class,
             ];
         }
 
@@ -86,36 +82,23 @@ class Dashboard extends BaseDashboard
                 // 💳 ROW 2: MÉTODOS DE PAGO Y HORAS (lado a lado)
                 \App\Filament\Widgets\PaymentMethodsWidget::class,
                 \App\Filament\Widgets\SalesHoursWidget::class,
-
-                // 💰 ROW 3: ESTADO DE CAJA
-                \App\Filament\Widgets\CashRegisterStatsWidget::class,
             ];
         }
 
-        // 👨‍🍳 COCINA - Dashboard de cocina simple (3 widgets)
+        // 👨‍🍳 COCINA/PRODUCCIÓN - Dashboard de producción (3 widgets)
         if ($user->hasRole('kitchen')) {
             return [
                 // 🏆 ROW 1: PRODUCTOS MÁS PEDIDOS
                 \App\Filament\Widgets\TopProductsWidget::class,
 
-                // ⏰ ROW 2: HORAS PICO Y RESERVAS (lado a lado)
+                // ⏰ ROW 2: HORAS PICO
                 \App\Filament\Widgets\SalesHoursWidget::class,
-                \App\Filament\Widgets\ReservationStats::class,
-            ];
-        }
-
-        // 🚚 DELIVERY - Dashboard básico (1 widget)
-        if ($user->hasRole('delivery')) {
-            return [
-                // 📅 INFO BÁSICA
-                \App\Filament\Widgets\ReservationStats::class,
             ];
         }
 
         // 📊 DEFAULT - Para roles no definidos (2 widgets)
         return [
             \App\Filament\Widgets\SalesStatsWidget::class,
-            \App\Filament\Widgets\ReservationStats::class,
         ];
     }
 
@@ -128,10 +111,7 @@ class Dashboard extends BaseDashboard
         /** @var User|null $user */
         $user = Auth::user();
 
-        // El rol waiter no puede acceder al Dashboard - va directo a mesas
-        if ($user && $user->hasRole('waiter')) {
-            return false;
-        }
+
 
         return true;
     }
@@ -217,13 +197,13 @@ class Dashboard extends BaseDashboard
 
                     DatePicker::make('start_date')
                         ->label('Fecha Inicio')
-                        ->visible(fn (callable $get) => $get('date_range') === 'custom')
-                        ->required(fn (callable $get) => $get('date_range') === 'custom'),
+                        ->visible(fn(callable $get) => $get('date_range') === 'custom')
+                        ->required(fn(callable $get) => $get('date_range') === 'custom'),
 
                     DatePicker::make('end_date')
                         ->label('Fecha Fin')
-                        ->visible(fn (callable $get) => $get('date_range') === 'custom')
-                        ->required(fn (callable $get) => $get('date_range') === 'custom'),
+                        ->visible(fn(callable $get) => $get('date_range') === 'custom')
+                        ->required(fn(callable $get) => $get('date_range') === 'custom'),
                 ])
                 ->columns(3),
         ]);
@@ -244,8 +224,8 @@ class Dashboard extends BaseDashboard
 
         $roleName = $user->roles->first()?->name ?? 'usuario';
 
-    $tz = config('app.timezone', 'UTC');
-    return "Rol: {$roleName} • {$currentDate} {$currentTime} ({$tz}) • Datos al momento de carga";
+        $tz = config('app.timezone', 'UTC');
+        return "Rol: {$roleName} • {$currentDate} {$currentTime} ({$tz}) • Datos al momento de carga";
     }
 }
 //comentario
