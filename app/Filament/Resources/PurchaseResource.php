@@ -25,9 +25,9 @@ class PurchaseResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Compras';
 
-    protected static ?string $slug = 'inventario/compras';
+    protected static ?string $slug = 'compras';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {

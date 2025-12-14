@@ -26,7 +26,7 @@ class EmployeeResource extends Resource
 
     protected static ?string $navigationLabel = 'Empleados';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 1;
 
     /**
      * OPTIMIZACIÓN: Agregar eager loading para evitar N+1 queries
@@ -298,7 +298,7 @@ class EmployeeResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Personal';
+        return 'Recursos Humanos';
     }
 }
 //cambios visuales

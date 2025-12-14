@@ -31,9 +31,9 @@ class SummaryResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Resúmenes de Boletas';
 
-    protected static ?string $navigationGroup = 'Facturación y Ventas';
+    protected static ?string $navigationGroup = 'Facturación Electrónica';
 
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {

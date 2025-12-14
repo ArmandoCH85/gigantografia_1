@@ -26,7 +26,7 @@ class CustomerResource extends Resource
 
     protected static ?string $navigationLabel = 'Clientes';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {
@@ -265,8 +265,10 @@ class CustomerResource extends Resource
         ];
     }
 
+
+
     public static function getNavigationGroup(): ?string
     {
-        return 'Clientes';
+        return 'Ventas';
     }
 }

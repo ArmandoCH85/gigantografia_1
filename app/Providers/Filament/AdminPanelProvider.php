@@ -80,13 +80,35 @@ class AdminPanelProvider extends PanelProvider
             ])
             // Habilitar descubrimiento automático de widgets como alternativa
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
-            // Agregar enlace personalizado para Resúmenes de Boletas
-            ->navigationItems([
-                NavigationItem::make('Resúmenes de Boletas')
-                    ->url('/admin/summaries')
+            ->navigationGroups([
+                NavigationGroup::make()
+                    ->label('Ventas')
+                    ->icon('heroicon-o-shopping-cart')
+                    ->collapsed(false),
+                NavigationGroup::make()
+                    ->label('Facturación Electrónica')
                     ->icon('heroicon-o-document-text')
-                    ->group('Facturación y Ventas')
-                    ->sort(5)
+                    ->collapsed(false),
+                NavigationGroup::make()
+                    ->label('Productos y Catálogo')
+                    ->icon('heroicon-o-cube')
+                    ->collapsed(false),
+                NavigationGroup::make()
+                    ->label('Inventario y Compras')
+                    ->icon('heroicon-o-archive-box')
+                    ->collapsed(false),
+                NavigationGroup::make()
+                    ->label('Recursos Humanos')
+                    ->icon('heroicon-o-user-group')
+                    ->collapsed(false),
+                NavigationGroup::make()
+                    ->label('Reportes')
+                    ->icon('heroicon-o-chart-bar')
+                    ->collapsed(false),
+                NavigationGroup::make()
+                    ->label('Configuración')
+                    ->icon('heroicon-o-cog-6-tooth')
+                    ->collapsed(true),
             ])
             // Eliminar grupos personalizados para que funcione con los recursos automáticos
             // Usar navegación automática de Filament

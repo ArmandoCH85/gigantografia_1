@@ -16,9 +16,11 @@ class DocumentSeriesResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
-    protected static ?string $navigationGroup = 'Facturación y Ventas';
+    protected static ?string $navigationGroup = 'Facturación Electrónica';
 
     protected static ?string $navigationLabel = 'Series de Comprobantes';
+
+    protected static ?int $navigationSort = 4;
 
     // Habilitar navegación para gestionar series de comprobantes
     protected static bool $shouldRegisterNavigation = true;
