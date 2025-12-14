@@ -31,7 +31,7 @@ class ProductResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Section::make('Información Básica')
-                    ->description('Ingrese la información principal del producto')
+                    ->description('Defina el tipo de gigantografía (ej: Banner, Vinil, Lona). La configuración específica se hará en cada pedido.')
                     ->schema([
                         Forms\Components\TextInput::make('code')
                             ->label('Código')
@@ -43,10 +43,11 @@ class ProductResource extends Resource
                             ->unique(Product::class, 'code', ignoreRecord: true),
 
                         Forms\Components\TextInput::make('name')
-                            ->label('Nombre')
+                            ->label('Nombre del Tipo')
                             ->required()
                             ->maxLength(255)
-                            ->placeholder('Ingrese el nombre del producto'),
+                            ->placeholder('Ej: Banner, Vinil en soporte, Lona, etc.')
+                            ->helperText('Este es el nombre que verá el cliente al elegir el tipo de gigantografía'),
 
                         Forms\Components\Select::make('category_id')
                             ->label('Categoría')
@@ -69,53 +70,55 @@ class ProductResource extends Resource
                             ->label('Tipo de Producto')
                             ->options([
                                 Product::TYPE_SALE_ITEM => 'Producto Estándar (Unidad)',
-                                Product::TYPE_SERVICE_GIGANTOGRAFIA => 'Gigantografía (Por m²)',
+                                Product::TYPE_SERVICE_GIGANTOGRAFIA => 'Gigantografía (Configurable)',
                             ])
                             ->required()
                             ->default(Product::TYPE_SALE_ITEM)
                             ->reactive()
-                            ->afterStateUpdated(
-                                fn($state, Forms\Set $set) =>
-                                $state === Product::TYPE_SERVICE_GIGANTOGRAFIA
-                                    ? $set('current_stock', 0)
-                                    : null
-                            ),
+                            ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                if ($state === Product::TYPE_SERVICE_GIGANTOGRAFIA) {
+                                    $set('current_stock', 0);
+                                    $set('sale_price', 0);
+                                    $set('current_cost', 0);
+                                }
+                            }),
 
                     ])->columns(2),
 
                 Forms\Components\Section::make('Precios y Costos')
-                    ->description('Configure los precios y costos del producto')
+                    ->description('Para gigantografías configurables, el precio final se calcula en cada pedido según material, medidas y acabados')
                     ->schema([
                         Forms\Components\TextInput::make('sale_price')
-                            ->label(
-                                fn(Forms\Get $get) =>
-                                $get('product_type') === Product::TYPE_SERVICE_GIGANTOGRAFIA
-                                    ? 'Precio Base por m²'
-                                    : 'Precio Unitario'
-                            )
+                            ->label('Precio de Referencia')
                             ->helperText(
                                 fn(Forms\Get $get) =>
                                 $get('product_type') === Product::TYPE_SERVICE_GIGANTOGRAFIA
-                                    ? 'El precio final se calculará según las medidas (Ancho x Alto) y acabados.'
+                                    ? 'El precio se calculará en el pedido según medidas, material y acabados.'
                                     : 'Precio de venta por unidad.'
                             )
                             ->required()
                             ->numeric()
                             ->prefix('S/')
+                            ->default(0.00)
+                            ->disabled(fn(Forms\Get $get) => $get('product_type') === Product::TYPE_SERVICE_GIGANTOGRAFIA)
+                            ->dehydrated()
                             ->maxValue(99999999.99)
                             ->step(0.01),
 
                         Forms\Components\TextInput::make('current_cost')
-                            ->label(
+                            ->label('Costo Referencial')
+                            ->helperText(
                                 fn(Forms\Get $get) =>
                                 $get('product_type') === Product::TYPE_SERVICE_GIGANTOGRAFIA
-                                    ? 'Costo Base por m²'
-                                    : 'Costo Actual'
+                                    ? 'El costo dependerá de los insumos utilizados.'
+                                    : 'Costo actual del producto.'
                             )
                             ->required()
                             ->numeric()
                             ->prefix('S/')
                             ->default(0.00)
+                            ->disabled(fn(Forms\Get $get) => $get('product_type') === Product::TYPE_SERVICE_GIGANTOGRAFIA)
+                            ->dehydrated()
                             ->maxValue(99999999.99)
                             ->step(0.01),
 
@@ -130,10 +133,12 @@ class ProductResource extends Resource
                     ])->columns(2),
 
                 Forms\Components\Section::make('Detalles Adicionales')
+                    ->description('Información complementaria del tipo de producto')
                     ->schema([
                         Forms\Components\Textarea::make('description')
                             ->label('Descripción')
-                            ->placeholder('Ingrese una descripción detallada del producto')
+                            ->placeholder('Ej: Ideal para exteriores, resistente a la intemperie, impresión de alta calidad...')
+                            ->helperText('Describa las características generales de este tipo de gigantografía')
                             ->rows(3)
                             ->columnSpanFull(),
 
