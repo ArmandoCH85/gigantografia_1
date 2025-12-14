@@ -310,8 +310,6 @@ class ManageElectronicBillingConfig extends ManageRecords
 
     protected function getHeaderWidgets(): array
     {
-        return [
-            \App\Filament\Widgets\SunatConfigurationOverview::class,
-        ];
+        return [];
     }
 }
