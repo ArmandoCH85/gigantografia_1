@@ -242,42 +242,7 @@ class ViewQuotation extends ViewRecord
                         ->send();
                 }),
 
-            Actions\Action::make('convert')
-                ->label('Convertir a Pedido')
-                ->icon('heroicon-o-arrow-right-circle')
-                ->color('primary')
-                ->visible(fn () => $this->record->isApproved() && !$this->record->isConverted())
-                ->requiresConfirmation()
-                ->action(function () {
-                    try {
-                        // Convertir la cotización a pedido
-                        $order = $this->record->convertToOrder();
 
-                        // Actualizar el estado de la cotización
-                        $this->record->status = Quotation::STATUS_CONVERTED;
-                        $this->record->order_id = $order->id;
-                        $this->record->save();
-
-                        // Notificar al usuario
-                        Notification::make()
-                            ->title('Cotización convertida a pedido correctamente')
-                            ->success()
-                            ->actions([
-                                \Filament\Notifications\Actions\Action::make('view')
-                                    ->label('Ver Pedido')
-                                    ->url('/pos?order_id=' . $order->id)
-                                    ->openUrlInNewTab(),
-                            ])
-                            ->send();
-                    } catch (\Exception $e) {
-                        // Si hay un error, notificar al usuario
-                        Notification::make()
-                            ->title('Error al convertir la cotización a pedido')
-                            ->body($e->getMessage())
-                            ->danger()
-                            ->send();
-                    }
-                }),
 
             Actions\Action::make('print')
                 ->label('Imprimir')

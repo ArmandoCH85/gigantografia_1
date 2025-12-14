@@ -23,7 +23,7 @@ class RestrictMenuByRole
         if ($user && $user->roles->where('name', 'waiter')->count() > 0) {
             $allowedRoutes = [
                 'admin/mapa-mesas',
-                'admin/pos-interface', // Permitir acceso completo al POS de Filament
+
                 'admin/login',
                 'admin/logout',
                 'admin/profile',
