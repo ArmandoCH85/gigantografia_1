@@ -245,7 +245,7 @@ class QuotationResource extends Resource
                                                             ->suffix('m')
                                                             ->required()
                                                             ->reactive()
-                                                            ->afterStateUpdated(fn($s, $set, $get) => self::calculateCustomPrice($set, $get)),
+                                                            ->afterStateUpdated(fn($state, $set, $get) => self::calculateCustomPrice($set, $get)),
 
                                                         Forms\Components\TextInput::make('height')
                                                             ->label('Alto (metros)')
@@ -255,7 +255,7 @@ class QuotationResource extends Resource
                                                             ->suffix('m')
                                                             ->required()
                                                             ->reactive()
-                                                            ->afterStateUpdated(fn($s, $set, $get) => self::calculateCustomPrice($set, $get)),
+                                                            ->afterStateUpdated(fn($state, $set, $get) => self::calculateCustomPrice($set, $get)),
                                                     ]),
 
                                                 Forms\Components\Select::make('material_id')
@@ -274,7 +274,7 @@ class QuotationResource extends Resource
                                                     ->searchable()
                                                     ->required()
                                                     ->reactive()
-                                                    ->afterStateUpdated(fn($s, $set, $get) => self::calculateCustomPrice($set, $get)),
+                                                    ->afterStateUpdated(fn($state, $set, $get) => self::calculateCustomPrice($set, $get)),
 
                                                 Forms\Components\Repeater::make('finishes')
                                                     ->label('Acabados')
@@ -302,7 +302,7 @@ class QuotationResource extends Resource
                                                     ->defaultItems(0)
                                                     ->addActionLabel('+ Agregar Acabado')
                                                     ->reactive()
-                                                    ->afterStateUpdated(fn($s, $set, $get) => self::calculateCustomPrice($set, $get))
+                                                    ->afterStateUpdated(fn($state, $set, $get) => self::calculateCustomPrice($set, $get))
                                                     ->columnSpan('full'),
 
                                                 Forms\Components\Placeholder::make('_precio_calculado')
