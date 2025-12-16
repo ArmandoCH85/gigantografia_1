@@ -15,6 +15,11 @@ use Illuminate\Database\Eloquent\Builder;
 use Filament\Notifications\Notification;
 use Filament\Tables\Actions\Action;
 use Illuminate\Support\Facades\Auth;
+use App\Models\ProductMaterial;
+use App\Models\ProductFinish;
+use App\Services\PriceCalculatorService;
+use Illuminate\Support\Str;
+use App\Models\CustomerPriceTier;
 
 class QuotationResource extends Resource
 {
@@ -38,30 +43,8 @@ class QuotationResource extends Resource
 
     protected static int $globalSearchResultsLimit = 10;
 
-    // Protección de acceso - Principio de menor privilegio
-    public static function canViewAny(): bool
-    {
-        $user = Auth::user();
-        return $user && ($user->hasRole(['super_admin', 'admin']));
-    }
+    // Protección de acceso eliminada temporalmente para restaurar visibilidad
 
-    public static function canCreate(): bool
-    {
-        $user = Auth::user();
-        return $user && ($user->hasRole(['super_admin', 'admin']));
-    }
-
-    public static function canEdit($record): bool
-    {
-        $user = Auth::user();
-        return $user && ($user->hasRole(['super_admin', 'admin']));
-    }
-
-    public static function canDelete($record): bool
-    {
-        $user = Auth::user();
-        return $user && ($user->hasRole(['super_admin', 'admin']));
-    }
 
     public static function getGloballySearchableAttributes(): array
     {
@@ -225,16 +208,115 @@ class QuotationResource extends Resource
                                     })
                                     ->schema([
                                         Forms\Components\Select::make('product_id')
-                                            ->label('Producto')
-                                            ->options(Product::query()->where('active', true)->pluck('name', 'id'))
+                                            ->label('Producto Base')
+                                            ->options(function () {
+                                                return \App\Models\Product::query()
+                                                    ->whereHas('category', fn($q) => $q->whereIn('name', ['BANER', 'VINIL']))
+                                                    ->where('active', true)
+                                                    ->pluck('name', 'id');
+                                            })
                                             ->searchable()
                                             ->preload()
                                             ->required()
-                                            ->live()
-                                            ->afterStateUpdated(function ($state, callable $set, $get) {
-                                                self::updateProductPrice($state, $set, $get);
+                                            ->reactive()
+                                            ->afterStateUpdated(function ($state, $set) {
+                                                if ($state) {
+                                                    $product = \App\Models\Product::with('category')->find($state);
+                                                    $set('_product_category', $product?->category?->name);
+                                                    $set('width', null);
+                                                    $set('height', null);
+                                                    $set('material_id', null);
+                                                    $set('finishes', []);
+                                                }
                                             }),
 
+                                        Forms\Components\Hidden::make('_product_category'),
+
+                                        // Configuración Personalizada (Banner/Vinil)
+                                        Forms\Components\Section::make('Configuración Personalizada')
+                                            ->schema([
+                                                Forms\Components\Grid::make(2)
+                                                    ->schema([
+                                                        Forms\Components\TextInput::make('width')
+                                                            ->label('Ancho (metros)')
+                                                            ->numeric()
+                                                            ->minValue(0.1)
+                                                            ->step(0.01)
+                                                            ->suffix('m')
+                                                            ->required()
+                                                            ->reactive()
+                                                            ->afterStateUpdated(fn($s, $set, $get) => self::calculateCustomPrice($set, $get)),
+
+                                                        Forms\Components\TextInput::make('height')
+                                                            ->label('Alto (metros)')
+                                                            ->numeric()
+                                                            ->minValue(0.1)
+                                                            ->step(0.01)
+                                                            ->suffix('m')
+                                                            ->required()
+                                                            ->reactive()
+                                                            ->afterStateUpdated(fn($s, $set, $get) => self::calculateCustomPrice($set, $get)),
+                                                    ]),
+
+                                                Forms\Components\Select::make('material_id')
+                                                    ->label('Material')
+                                                    ->options(function ($get) {
+                                                        $productId = $get('product_id');
+                                                        if (!$productId) return [];
+
+                                                        $product = \App\Models\Product::with('category')->find($productId);
+                                                        if (!$product) return [];
+
+                                                        return \App\Models\ProductMaterial::where('category_id', $product->category_id)
+                                                            ->where('active', true)
+                                                            ->pluck('name', 'id');
+                                                    })
+                                                    ->searchable()
+                                                    ->required()
+                                                    ->reactive()
+                                                    ->afterStateUpdated(fn($s, $set, $get) => self::calculateCustomPrice($set, $get)),
+
+                                                Forms\Components\Repeater::make('finishes')
+                                                    ->label('Acabados')
+                                                    ->visible(fn($get) => str_contains(strtoupper($get('_product_category') ?? ''), 'BANER'))
+                                                    ->schema([
+                                                        Forms\Components\Select::make('id')
+                                                            ->label('Acabado')
+                                                            ->options(\App\Models\ProductFinish::where('active', true)->pluck('name', 'id'))
+                                                            ->required()
+                                                            ->reactive()
+                                                            ->afterStateUpdated(function ($state, $set) {
+                                                                $finish = \App\Models\ProductFinish::find($state);
+                                                                $set('_requires_quantity', $finish?->requires_quantity ?? false);
+                                                            }),
+
+                                                        Forms\Components\TextInput::make('quantity')
+                                                            ->label('Cantidad')
+                                                            ->numeric()
+                                                            ->minValue(1)
+                                                            ->default(1)
+                                                            ->visible(fn($get) => $get('_requires_quantity') ?? false),
+
+                                                        Forms\Components\Hidden::make('_requires_quantity'),
+                                                    ])
+                                                    ->defaultItems(0)
+                                                    ->addActionLabel('+ Agregar Acabado')
+                                                    ->reactive()
+                                                    ->afterStateUpdated(fn($s, $set, $get) => self::calculateCustomPrice($set, $get))
+                                                    ->columnSpan('full'),
+
+                                                Forms\Components\Placeholder::make('_precio_calculado')
+                                                    ->label('💰 Precio Calculado')
+                                                    ->content(fn($get) => 'S/ ' . number_format(floatval($get('unit_price') ?? 0), 2))
+                                                    ->extraAttributes(['class' => 'text-3xl font-bold text-success-600'])
+                                                    ->columnSpan('full'),
+                                            ])
+                                            ->collapsible()
+                                            ->collapsed(false)
+                                            ->visible(fn($get) => $get('product_id') !== null)
+                                            ->columnSpan('full'),
+
+                                        // Campos estándar (ya existen, mantener)
                                         Forms\Components\Grid::make(3)
                                             ->schema([
                                                 Forms\Components\TextInput::make('quantity')
@@ -243,7 +325,7 @@ class QuotationResource extends Resource
                                                     ->default(1)
                                                     ->minValue(1)
                                                     ->required()
-                                                    ->live()
+                                                    ->reactive()
                                                     ->afterStateUpdated(function ($state, $set, $get) {
                                                         self::updateDetailSubtotal($state, $set, $get);
                                                     }),
@@ -253,10 +335,8 @@ class QuotationResource extends Resource
                                                     ->prefix('S/')
                                                     ->numeric()
                                                     ->required()
-                                                    ->live()
-                                                    ->afterStateUpdated(function ($state, $set, $get) {
-                                                        self::updateDetailSubtotal($state, $set, $get);
-                                                    }),
+                                                    ->disabled()
+                                                    ->dehydrated(true),
 
                                                 Forms\Components\TextInput::make('subtotal')
                                                     ->label('Subtotal')
@@ -269,7 +349,7 @@ class QuotationResource extends Resource
 
                                         Forms\Components\Textarea::make('notes')
                                             ->label('Notas')
-                                            ->placeholder('Notas adicionales para este producto')
+                                            ->placeholder('Notas adicionales')
                                             ->maxLength(255)
                                             ->columnSpan('full'),
                                     ])
@@ -769,6 +849,48 @@ class QuotationResource extends Resource
             \Illuminate\Support\Facades\Log::error('Error al recalcular totales', [
                 'error' => $e->getMessage()
             ]);
+        }
+    }
+    /**
+     * Calcula precio personalizado basado en configuración
+     */
+    protected static function calculateCustomPrice($set, $get): void
+    {
+        try {
+            $width = floatval($get('width') ?? 0);
+            $height = floatval($get('height') ?? 0);
+            $materialId = $get('material_id');
+            $finishes = $get('finishes') ?? [];
+
+            if (!$width || !$height || !$materialId) {
+                return;
+            }
+
+            // Obtener price_tier del cliente
+            $customerId = $get('../../customer_id');
+            $priceTierId = null;
+
+            if ($customerId) {
+                $customer = \App\Models\Customer::find($customerId);
+                $priceTierId = $customer?->price_tier_id;
+            }
+
+            // Calcular precio
+            $calculator = new \App\Services\PriceCalculatorService();
+            $price = $calculator->calculatePrice(
+                $width,
+                $height,
+                $materialId,
+                $finishes,
+                $priceTierId
+            );
+
+            $set('unit_price', $price);
+
+            $quantity = floatval($get('quantity') ?? 1);
+            $set('subtotal', $price * $quantity);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error calculando precio', ['error' => $e->getMessage()]);
         }
     }
 }

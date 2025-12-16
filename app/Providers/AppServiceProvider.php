@@ -47,6 +47,9 @@ class AppServiceProvider extends ServiceProvider
             // Por ejemplo, usuarios con el rol admin o el ID 1 (primer usuario)
             return $user->hasRole('admin') || $user->id === 1;
         });
+
+        // Registrar observadores
+        \App\Models\ProductConfiguration::observe(\App\Observers\ProductConfigurationObserver::class);
+        \App\Models\QuotationDetail::observe(\App\Observers\QuotationDetailObserver::class);
     }
 }
-

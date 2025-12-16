@@ -12,13 +12,15 @@ class ProductFinish extends Model
     protected $fillable = [
         'name',
         'code',
-        'additional_cost',
+        'cost_per_unit',
+        'cost_formula',
+        'formula_type',
         'requires_quantity',
         'active'
     ];
 
     protected $casts = [
-        'additional_cost' => 'decimal:2',
+        'cost_per_unit' => 'decimal:2',
         'requires_quantity' => 'boolean',
         'active' => 'boolean'
     ];

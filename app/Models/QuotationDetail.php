@@ -30,6 +30,10 @@ class QuotationDetail extends Model
         'quotation_id',
         'product_id',
         'quantity',
+        'width',
+        'height',
+        'material_id',
+        'finishes',
         'unit_price',
         'subtotal',
         'notes'
@@ -41,7 +45,10 @@ class QuotationDetail extends Model
      * @var array
      */
     protected $casts = [
+        'width' => 'decimal:2',
+        'height' => 'decimal:2',
         'quantity' => 'integer',
+        'finishes' => 'array',
         'unit_price' => 'decimal:2',
         'subtotal' => 'decimal:2',
         'created_at' => 'datetime',
@@ -62,6 +69,14 @@ class QuotationDetail extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Obtiene el material asociado a este detalle.
+     */
+    public function material(): BelongsTo
+    {
+        return $this->belongsTo(ProductMaterial::class);
     }
 
     /**
