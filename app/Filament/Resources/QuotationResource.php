@@ -232,6 +232,12 @@ class QuotationResource extends Resource
 
                                         Forms\Components\Hidden::make('_product_category'),
 
+                                        Forms\Components\Placeholder::make('_categoria_display')
+                                            ->label('📦 Categoría')
+                                            ->content(fn($get) => $get('_product_category') ?? '—')
+                                            ->visible(fn($get) => $get('product_id') !== null)
+                                            ->extraAttributes(['class' => 'text-lg font-semibold text-primary-600']),
+
                                         // Configuración Personalizada (Banner/Vinil)
                                         Forms\Components\Section::make('Configuración Personalizada')
                                             ->schema([
@@ -240,6 +246,7 @@ class QuotationResource extends Resource
                                                         Forms\Components\TextInput::make('width')
                                                             ->label('Ancho (metros)')
                                                             ->numeric()
+                                                            ->inputMode('decimal')
                                                             ->minValue(0.1)
                                                             ->step(0.01)
                                                             ->suffix('m')
@@ -250,6 +257,7 @@ class QuotationResource extends Resource
                                                         Forms\Components\TextInput::make('height')
                                                             ->label('Alto (metros)')
                                                             ->numeric()
+                                                            ->inputMode('decimal')
                                                             ->minValue(0.1)
                                                             ->step(0.01)
                                                             ->suffix('m')
