@@ -157,6 +157,32 @@ class UserResource extends Resource
                     ViewAction::make(),
                     EditAction::make(),
                     DeleteAction::make()
+                        ->action(function (User $record) {
+                            try {
+                                // Desvincular empleados asociados antes de eliminar
+                                \App\Models\Employee::where('user_id', $record->id)->update(['user_id' => null]);
+
+                                $record->delete();
+                                
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Usuario eliminado')
+                                    ->body('Si tenía un empleado asociado, este ha sido desvinculado pero no eliminado.')
+                                    ->success()
+                                    ->send();
+                                    
+                            } catch (\Illuminate\Database\QueryException $e) {
+                                // Fallback por si hay otras restricciones
+                                if ($e->getCode() == 23000) {
+                                    \Filament\Notifications\Notification::make()
+                                        ->title('No se puede eliminar el usuario')
+                                        ->body('Hay datos relacionados que impiden la eliminación.')
+                                        ->danger()
+                                        ->send();
+                                    return;
+                                }
+                                throw $e;
+                            }
+                        }),
                 ]),
             ]);
         return $table;

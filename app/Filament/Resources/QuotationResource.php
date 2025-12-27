@@ -620,9 +620,113 @@ class QuotationResource extends Resource
                     ->indicator('Cliente'),
             ])
             ->actions([
+            ])
+            ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()
                     ->visible(fn(Quotation $record) => !$record->isConverted()),
+                
+                // ACCIÓN: CONVERTIR A COMPROBANTE
+                Tables\Actions\Action::make('convert')
+                    ->label('Facturar')
+                    ->icon('heroicon-o-document-currency-dollar')
+                    ->color('success')
+                    ->visible(fn(Quotation $record) => !$record->isConverted() && !$record->isDraft())
+                    ->modalHeading('Generar Comprobante de Pago')
+                    ->modalDescription('Esto convertirá la cotización en una Orden y generará el comprobante electrónico.')
+                    ->form([
+                        Forms\Components\Grid::make(2)
+                            ->schema([
+                                Forms\Components\Select::make('invoice_type')
+                                    ->label('Tipo de Comprobante')
+                                    ->options([
+                                        'receipt' => 'Boleta de Venta',
+                                        'invoice' => 'Factura Electrónica',
+                                        'sales_note' => 'Nota de Venta (Interna)',
+                                    ])
+                                    ->default('receipt')
+                                    ->required()
+                                    ->reactive(),
+                                
+                                Forms\Components\Select::make('payment_method')
+                                    ->label('Medio de Pago')
+                                    ->options([
+                                        'cash' => 'Efectivo',
+                                        'yape' => 'Yape',
+                                        'plin' => 'Plin',
+                                        'card' => 'Tarjeta',
+                                        'transfer' => 'Transferencia',
+                                    ])
+                                    ->default('cash')
+                                    ->required(),
+                            ]),
+                        
+                        Forms\Components\TextInput::make('payment_amount')
+                            ->label('Monto a Pagar')
+                            ->default(fn(Quotation $record) => $record->total)
+                            ->numeric()
+                            ->prefix('S/')
+                            ->required(),
+                    ])
+                    ->action(function (Quotation $record, array $data) {
+                        try {
+                            \Illuminate\Support\Facades\DB::transaction(function() use ($record, $data) {
+                                // 1. Convertir a Pedido (Order)
+                                $order = $record->convertToOrder('takeout');
+
+                                // 2. Registrar el Pago
+                                $order->registerPayment(
+                                    $data['payment_method'],
+                                    $data['payment_amount'],
+                                    'Pago directo desde Cotización'
+                                );
+
+                                // 3. Determinar Serie según tipo
+                                // Lógica simple de series por defecto (ajustar según tu lógica real de Series)
+                                $seriesPrefix = match($data['invoice_type']) {
+                                    'invoice' => 'F001',
+                                    'receipt' => 'B001',
+                                    'sales_note' => 'N001',
+                                    default => 'T001'
+                                };
+                                
+                                // Buscar si existe una serie configurada en BD
+                                $serieDb = \App\Models\DocumentSeries::where('series', $seriesPrefix)->first();
+                                if (!$serieDb) {
+                                     // Fallback o error si no hay series
+                                     // throw new \Exception("No hay serie configurada para {$seriesPrefix}");
+                                }
+                                
+                                // 4. Generar el Comprobante
+                                // Nota: generateInvoice usa Transaction internamente, pero estamos dentro de una.
+                                // Asegúrate que tu modelo soporte transacciones anidadas o simplemente llama lógico.
+                                $invoice = $order->generateInvoice(
+                                    $data['invoice_type'],
+                                    $seriesPrefix,
+                                    $record->customer_id
+                                );
+
+                                if ($invoice) {
+                                    Notification::make()
+                                        ->title('Éxito')
+                                        ->body("Comprobante {$invoice->series}-{$invoice->number} generado correctamente.")
+                                        ->success()
+                                        ->send();
+                                        
+                                    // Abrir PDF en nueva pestaña (Redirección)
+                                    // En Action de Filament, redirect se hace retornando response o usando redirect()
+                                     // return redirect()->route('print.invoice', $invoice);
+                                }
+                            });
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Error')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+
                 Tables\Actions\DeleteAction::make()
                     ->visible(fn(Quotation $record) => !$record->isConverted()),
 

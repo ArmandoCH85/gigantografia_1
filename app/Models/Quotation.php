@@ -283,7 +283,7 @@ class Quotation extends Model
      * @param int|null $tableId ID de la mesa (solo para 'dine_in')
      * @return Order|null El pedido creado o null si hubo un error
      */
-    public function convertToOrder(string $serviceType = 'takeout', ?int $tableId = null): ?Order
+    public function convertToOrder(string $serviceType = 'takeout', ?int $tableId = null): Order
     {
         // Verificar si la cotización ya fue convertida
         if ($this->isConverted() || $this->order_id) {
@@ -292,77 +292,68 @@ class Quotation extends Model
 
         // Iniciar transacción para asegurar la integridad de los datos
         return \Illuminate\Support\Facades\DB::transaction(function () use ($serviceType, $tableId) {
-            try {
-                // Obtener la caja registradora activa
-                $activeCashRegister = CashRegister::getOpenRegister();
+            // Obtener la caja registradora activa
+            $activeCashRegister = CashRegister::getOpenRegister();
 
-                if (!$activeCashRegister) {
-                    throw new \Exception('No hay una caja registradora abierta. Por favor, abra una caja antes de crear una orden.');
+            if (!$activeCashRegister) {
+                // Verificar si hay alguna caja configurada
+                $count = CashRegister::count();
+                if ($count === 0) {
+                    throw new \Exception('No hay ninguna Caja Registradora configurada en el sistema.');
                 }
-
-                // Crear el pedido
-                $order = new Order([
-                    'service_type' => $serviceType,
-                    'table_id' => $tableId,
-                    'customer_id' => $this->customer_id,
-                    'employee_id' => $this->user_id, // Usar el usuario de la cotización como empleado
-                    'order_datetime' => now(),
-                    'status' => Order::STATUS_OPEN,
-                    'subtotal' => $this->subtotal,
-                    'tax' => $this->tax,
-                    'discount' => $this->discount,
-                    'total' => $this->total,
-                    'notes' => $this->buildOrderNotes(),
-                    'billed' => false,
-                    'cash_register_id' => $activeCashRegister->id
-                ]);
-
-                $order->save();
-
-                // Crear los detalles del pedido a partir de los detalles de la cotización
-                foreach ($this->details as $detail) {
-                    $orderDetail = new OrderDetail([
-                        'order_id' => $order->id,
-                        'product_id' => $detail->product_id,
-                        'quantity' => $detail->quantity,
-                        'unit_price' => $detail->unit_price,
-                        'subtotal' => $detail->subtotal,
-                        'notes' => $detail->notes,
-                        'status' => 'pending'
-                    ]);
-
-                    $orderDetail->save();
-                }
-
-                // Actualizar la cotización
-                $this->status = self::STATUS_CONVERTED;
-                $this->order_id = $order->id;
-                $this->save();
-
-                // Si es para servicio en local, actualizar el estado de la mesa
-                if ($serviceType === 'dine_in' && $tableId) {
-                    $table = Table::find($tableId);
-                    if ($table) {
-                        $table->status = Table::STATUS_OCCUPIED;
-                        $table->occupied_at = now();
-                        $table->save();
-                    }
-                }
-
-                return $order;
-            } catch (\Exception $e) {
-                // Registrar el error
-                \Illuminate\Support\Facades\Log::error('Error al convertir cotización a pedido', [
-                    'quotation_id' => $this->id,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
-                ]);
-
-                // Revertir la transacción
-                \Illuminate\Support\Facades\DB::rollBack();
-
-                return null;
+                throw new \Exception('No hay una caja registradora ABIERTA. Debe abrir caja desde el menú POS antes de facturar.');
             }
+
+            // Crear el pedido
+            $order = new Order([
+                'service_type' => $serviceType,
+                'table_id' => $tableId,
+                'customer_id' => $this->customer_id,
+                'employee_id' => $this->user_id, // Usar el usuario de la cotización como empleado
+                'order_datetime' => now(),
+                'status' => Order::STATUS_OPEN,
+                'subtotal' => $this->subtotal,
+                'tax' => $this->tax,
+                'discount' => $this->discount,
+                'total' => $this->total,
+                'notes' => $this->buildOrderNotes(),
+                'billed' => false,
+                'cash_register_id' => $activeCashRegister->id
+            ]);
+
+            $order->save();
+
+            // Crear los detalles del pedido a partir de los detalles de la cotización
+            foreach ($this->details as $detail) {
+                $orderDetail = new OrderDetail([
+                    'order_id' => $order->id,
+                    'product_id' => $detail->product_id,
+                    'quantity' => $detail->quantity,
+                    'unit_price' => $detail->unit_price,
+                    'subtotal' => $detail->subtotal,
+                    'notes' => $detail->notes,
+                    'status' => 'pending'
+                ]);
+
+                $orderDetail->save();
+            }
+
+            // Actualizar la cotización
+            $this->status = self::STATUS_CONVERTED;
+            $this->order_id = $order->id;
+            $this->save();
+
+            // Si es para servicio en local, actualizar el estado de la mesa
+            if ($serviceType === 'dine_in' && $tableId) {
+                $table = Table::find($tableId);
+                if ($table) {
+                    $table->status = Table::STATUS_OCCUPIED;
+                    $table->occupied_at = now();
+                    $table->save();
+                }
+            }
+
+            return $order;
         });
     }
 
