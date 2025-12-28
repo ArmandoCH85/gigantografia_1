@@ -20,6 +20,15 @@ class PriceCalculatorService
             return 0.0;
         }
 
+        if (Str::contains(Str::lower($material->name ?? ''), 'lona trasluc')) {
+            if (!$height) return 0.0;
+            return $this->calculateBannerPrice($width, $height, $material, $finishes, $priceTierId);
+        }
+
+        if (!$width || !$height) {
+            return 0.0;
+        }
+
         if ($this->isBanner($material)) {
             return $this->calculateBannerPrice($width, $height, $material, $finishes, $priceTierId);
         }
@@ -28,9 +37,8 @@ class PriceCalculatorService
             return $this->calculateVinilPrice($width, $height, $material, $priceTierId);
         }
 
-        // Default or other categories logic if needed, currently returning 0 or standard calc?
-        // Fallback to simple area * standard price if unknown category
-        return ($width * $height) * $material->price_factor_standard;
+        // Fallback
+        return ($width * $height) * floatval($material->price_factor_standard ?? 0);
     }
 
     public function calculateBannerPrice($width, $height, $material, $finishes = [], $priceTierId = null): float
@@ -39,18 +47,15 @@ class PriceCalculatorService
             $material = ProductMaterial::with('category')->find($material);
         }
 
-        // Validate Lona Traslúcida height limit (1.20m max height check from prompts)
-        // "Lona Traslúcida: alto × 26 (máx 1.2m alto)" - This seems to apply to a specific item.
-        // If material is Lona Traslúcida, check height? Or is it a finish?
-        // Requirement says: "Lona Traslúcida: alto × 26 (máx 1.2m alto)" under Banner.
-        // It's listed in "Acabados", but the name suggests material.
-        // If it is a finish, it will be handled in finish loop.
-        // If it is a material, we should check max_height.
+        // Lógica especial para Lona Traslúcida: alto × 26
+        if (Str::contains(Str::lower($material->name ?? ''), 'lona trasluc')) {
+            $materialPrice = $height * 26;
+        } else {
+            $area = $width * $height;
+            $factor = $this->getMaterialFactor($material, $priceTierId);
+            $materialPrice = $area * $factor;
+        }
 
-        $area = $width * $height;
-        $factor = $this->getMaterialFactor($material, $priceTierId);
-
-        $materialPrice = $area * $factor;
         $finishesPrice = $this->calculateFinishesPrice($finishes, $width, $height);
 
         return round($materialPrice + $finishesPrice, 2);
@@ -62,23 +67,15 @@ class PriceCalculatorService
             $material = ProductMaterial::with('category')->find($material);
         }
 
-        // Validations
-        // "Materiales Foam y Celtex: ancho máximo 1.20m"
-        if ($this->isFoamOrCeltex($material) && $width > 1.20) {
-            // Should we throw exception or cap? Prompt says "Validar max_width".
-            // ideally throw exception but for price calc maybe return 0?
-            // The UI should handle validation. Here we proceed or error.
-            // Let's assume validation happens before or we just calculate.
-        }
+        // Usar el ancho de bobina configurado o 1.5 por defecto
+        $sheetWidth = floatval($material->sheet_width > 0 ? $material->sheet_width : 1.5);
+        $factor = floatval($material->price_factor_standard ?? 0);
 
-        $sheetWidth = $material->sheet_width > 0 ? $material->sheet_width : 1.5;
-        $sheets = ceil($width / $sheetWidth);
-        $adjustedArea = $sheets * $height;
-
-        // "Factores (solo estándar)" for Vinil
-        $factor = $material->price_factor_standard;
-
-        return round($adjustedArea * $factor, 2);
+        // Fórmula solicitada: (roundup(ancho / 1.5, 0) * altura) * factor
+        // ceil() en PHP equivale a roundup(x, 0)
+        $sheets = ceil(floatval($width) / $sheetWidth);
+        
+        return round(($sheets * floatval($height)) * $factor, 2);
     }
 
     protected function calculateFinishesPrice($finishes, $width, $height): float
@@ -88,30 +85,37 @@ class PriceCalculatorService
         foreach ($finishes as $finishItem) {
             $finishId = is_array($finishItem) ? ($finishItem['id'] ?? $finishItem['finish_id'] ?? null) : $finishItem;
             $quantity = is_array($finishItem) ? ($finishItem['quantity'] ?? 1) : 1;
+            
+            // Si el acabado tiene una medida de tubo específica, usamos esa medida como cantidad
+            if (is_array($finishItem) && isset($finishItem['tube_width']) && $finishItem['tube_width'] > 0) {
+                $quantity = $finishItem['tube_width'];
+            }
 
             if (!$finishId) continue;
 
             $finish = ProductFinish::find($finishId);
             if (!$finish) continue;
 
+            $costPerUnit = floatval($finish->cost_per_unit ?? 0);
+            $fQuantity = floatval($quantity ?? 1);
+            $fWidth = floatval($width ?? 0);
+            $fHeight = floatval($height ?? 0);
+
             switch ($finish->formula_type) {
                 case 'fixed':
-                    $total += $finish->cost_per_unit;
+                    $total += $costPerUnit;
                     break;
                 case 'per_quantity':
-                    $total += $finish->cost_per_unit * $quantity;
-                    // "Ojales: cantidad × 0.50" -> fits here if cost_per_unit is 0.50
+                    $total += $costPerUnit * $fQuantity;
                     break;
                 case 'width_based':
-                    $total += $finish->cost_per_unit * $width;
-                    // "Tubos: ancho × 5" -> fits here if cost_per_unit is 5
+                    $total += $costPerUnit * $fWidth;
                     break;
                 case 'height_based':
-                    $total += $finish->cost_per_unit * $height;
-                    // "Lona Traslúcida: alto × 26" -> fits here if Lona Traslúcida is a finish
+                    $total += $costPerUnit * $fHeight;
                     break;
                 default:
-                    $total += $finish->cost_per_unit;
+                    $total += $costPerUnit;
             }
         }
 

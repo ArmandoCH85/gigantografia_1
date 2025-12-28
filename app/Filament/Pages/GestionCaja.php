@@ -31,6 +31,15 @@ class GestionCaja extends Page
     public float $dailySales = 0.00;
     public float $totalCash = 0.00;
     public float $openingAmount = 0.00;
+    
+    // Desglose por método de pago
+    public float $cashPayments = 0.00;
+    public float $cardPayments = 0.00;
+    public float $transferPayments = 0.00;
+    public float $digitalWalletPayments = 0.00;
+    public float $otherPayments = 0.00;
+    
+    public $recentPayments = [];
 
     public function mount()
     {
@@ -45,16 +54,49 @@ class GestionCaja extends Page
         if ($this->hasOpenRegister && $this->openRegister) {
             $this->openingAmount = $this->openRegister->opening_amount;
             
-            // Calcular ventas desde la apertura
-            // Usamos payment_datetime para ser precisos con la fecha de pago
-            $this->dailySales = Payment::where('payment_datetime', '>=', $this->openRegister->opening_datetime)
+            $query = Payment::where('payment_datetime', '>=', $this->openRegister->opening_datetime);
+            
+            // Calcular ventas totales
+            $this->dailySales = $query->sum('amount');
+            
+            // Desglose
+            $this->cashPayments = Payment::where('payment_datetime', '>=', $this->openRegister->opening_datetime)
+                ->where('payment_method', Payment::METHOD_CASH)
                 ->sum('amount');
                 
-            $this->totalCash = $this->openingAmount + $this->dailySales;
+            $this->cardPayments = Payment::where('payment_datetime', '>=', $this->openRegister->opening_datetime)
+                ->whereIn('payment_method', [Payment::METHOD_CARD, Payment::METHOD_CREDIT_CARD, Payment::METHOD_DEBIT_CARD])
+                ->sum('amount');
+                
+            $this->transferPayments = Payment::where('payment_datetime', '>=', $this->openRegister->opening_datetime)
+                ->where('payment_method', Payment::METHOD_BANK_TRANSFER)
+                ->sum('amount');
+                
+            $this->digitalWalletPayments = Payment::where('payment_datetime', '>=', $this->openRegister->opening_datetime)
+                ->where('payment_method', Payment::METHOD_DIGITAL_WALLET)
+                ->sum('amount');
+                
+            $this->otherPayments = $this->dailySales - ($this->cashPayments + $this->cardPayments + $this->transferPayments + $this->digitalWalletPayments);
+                
+            $this->totalCash = $this->openingAmount + $this->cashPayments;
+
+            // Obtener últimos 10 pagos
+            $this->recentPayments = Payment::where('payment_datetime', '>=', $this->openRegister->opening_datetime)
+                ->with(['order.customer'])
+                ->latest('payment_datetime')
+                ->limit(10)
+                ->get();
+
         } else {
             $this->dailySales = 0;
             $this->totalCash = 0;
             $this->openingAmount = 0;
+            $this->cashPayments = 0;
+            $this->cardPayments = 0;
+            $this->transferPayments = 0;
+            $this->digitalWalletPayments = 0;
+            $this->otherPayments = 0;
+            $this->recentPayments = [];
         }
     }
 

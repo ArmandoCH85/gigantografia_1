@@ -620,12 +620,18 @@ class Order extends Model
 
                 // 8. Agregar detalles de la factura
                 foreach ($this->orderDetails as $detail) {
+                    $description = $detail->product->name;
+                    
+                    if ($detail->notes) {
+                        $description .= " " . $detail->notes;
+                    }
+
                     $invoice->details()->create([
                         'product_id' => $detail->product_id,
                         'quantity' => $detail->quantity,
                         'unit_price' => $detail->unit_price,
                         'subtotal' => $detail->subtotal,
-                        'description' => $detail->product->name,
+                        'description' => $description,
                     ]);
                 }
 

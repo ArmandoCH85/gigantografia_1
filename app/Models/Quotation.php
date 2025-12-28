@@ -327,13 +327,20 @@ class Quotation extends Model
 
             // Crear los detalles del pedido a partir de los detalles de la cotización
             foreach ($this->details as $detail) {
+                $materialName = $detail->material?->name;
+                $detailNotes = $detail->notes;
+                
+                if ($materialName) {
+                    $detailNotes = $detailNotes ? "[$materialName] $detailNotes" : "($materialName)";
+                }
+
                 $orderDetail = new OrderDetail([
                     'order_id' => $order->id,
                     'product_id' => $detail->product_id,
                     'quantity' => $detail->quantity,
                     'unit_price' => $detail->unit_price,
                     'subtotal' => $detail->subtotal,
-                    'notes' => $detail->notes,
+                    'notes' => $detailNotes,
                     'status' => 'pending'
                 ]);
 

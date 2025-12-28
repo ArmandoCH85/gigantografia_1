@@ -153,6 +153,35 @@ class InvoiceResource extends Resource
                             ])->columns(3)
                     ]),
 
+                Forms\Components\Section::make('Detalle de Productos')
+                    ->schema([
+                        Forms\Components\Repeater::make('details')
+                            ->relationship()
+                            ->schema([
+                                Forms\Components\TextInput::make('description')
+                                    ->label('Descripción / Material')
+                                    ->disabled()
+                                    ->columnSpan(2),
+                                Forms\Components\TextInput::make('quantity')
+                                    ->label('Cantidad')
+                                    ->numeric()
+                                    ->disabled(),
+                                Forms\Components\TextInput::make('unit_price')
+                                    ->label('Precio Unitario')
+                                    ->prefix('S/')
+                                    ->disabled(),
+                                Forms\Components\TextInput::make('subtotal')
+                                    ->label('Subtotal')
+                                    ->prefix('S/')
+                                    ->disabled(),
+                            ])
+                            ->columns(5)
+                            ->disabled()
+                            ->addable(false)
+                            ->deletable(false)
+                            ->reorderable(false)
+                    ]),
+
                 Forms\Components\Section::make('Importes')
                     ->schema([
                         Forms\Components\TextInput::make('taxable_amount')
@@ -247,6 +276,18 @@ class InvoiceResource extends Resource
                     ->searchable()
                     ->limit(30),
 
+                Tables\Columns\TextColumn::make('details_summary')
+                    ->label('Detalles (Prod/Cant/Precio)')
+                    ->html()
+                    ->getStateUsing(function ($record) {
+                        return $record->details->map(function ($detail) {
+                            $desc = $detail->description ?? ($detail->product->name ?? 'Producto');
+                            $quantity = number_format((float) ($detail->quantity ?? 0), 2);
+                            $price = number_format((float) ($detail->unit_price ?? 0), 2);
+                            return "<div class='text-[10px] leading-tight mb-1'>• <b>{$desc}</b><br><span class='text-gray-500'>{$quantity} x S/ {$price}</span></div>";
+                        })->implode('');
+                    })
+                    ->visible(fn() => true),
                 Tables\Columns\TextColumn::make('total')
                     ->label('Total')
                     ->money('PEN')
@@ -373,245 +414,231 @@ class InvoiceResource extends Resource
                         ($record->invoice_type === 'sales_note') ||
                             (in_array($record->invoice_type, ['invoice', 'receipt']) && !in_array($record->sunat_status, ['ACEPTADO']) && $record->tax_authority_status !== 'voided')
                     ),
-                Action::make('send_to_sunat')
-                    ->label('Enviar a SUNAT')
-                    ->icon('heroicon-o-paper-airplane')
-                    ->color('info')
-                    ->visible(
-                        fn(Invoice $record): bool =>
-                        // SOLO Boletas y Facturas - NO Notas de Venta
-                        in_array($record->invoice_type, ['invoice', 'receipt']) &&
-                            ($record->sunat_status === 'PENDIENTE' || $record->sunat_status === null)
-                    )
-                    ->form([
-                        Forms\Components\Placeholder::make('info')
-                            ->label('Método de Envío')
-                            ->content('Se enviará vía QPS (qpse.pe) - Método estable y confiable')
-                    ])
-                    ->modalHeading('Enviar Comprobante a SUNAT')
-                    ->modalDescription(
-                        fn(Invoice $record): string =>
-                        "Comprobante: {$record->series}-{$record->number}\nCliente: {$record->customer->name}\nTotal: S/ " . number_format($record->total, 2)
-                    )
-                    ->modalSubmitActionLabel('Enviar a SUNAT')
-                    ->action(function (Invoice $record, array $data): void {
-                        try {
-                            // Envío exclusivamente vía QPS
-                            $qpsService = new \App\Services\QpsService();
-                            $result = $qpsService->sendInvoiceViaQps($record);
+                Tables\Actions\ActionGroup::make([
+                    Action::make('send_to_sunat')
+                        ->label('Enviar a SUNAT')
+                        ->icon('heroicon-o-paper-airplane')
+                        ->color('info')
+                        ->visible(
+                            fn(Invoice $record): bool =>
+                            // SOLO Boletas y Facturas - NO Notas de Venta
+                            in_array($record->invoice_type, ['invoice', 'receipt']) &&
+                                ($record->sunat_status === 'PENDIENTE' || $record->sunat_status === null)
+                        )
+                        ->form([
+                            Forms\Components\Placeholder::make('info')
+                                ->label('Método de Envío')
+                                ->content('Se enviará vía QPS (qpse.pe) - Método estable y confiable')
+                        ])
+                        ->modalHeading('Enviar Comprobante a SUNAT')
+                        ->modalDescription(
+                            fn(Invoice $record): string =>
+                            "Comprobante: {$record->series}-{$record->number}\nCliente: {$record->customer->name}\nTotal: S/ " . number_format((float) $record->total, 2)
+                        )
+                        ->modalSubmitActionLabel('Enviar a SUNAT')
+                        ->action(function (Invoice $record, array $data): void {
+                            try {
+                                // Envío exclusivamente vía QPS
+                                $qpsService = new \App\Services\QpsService();
+                                $result = $qpsService->sendInvoiceViaQps($record);
 
-                            if ($result['success']) {
+                                if ($result['success']) {
+                                    Notification::make()
+                                        ->title('Comprobante enviado exitosamente')
+                                        ->body('El comprobante ha sido enviado y aceptado por SUNAT vía QPS')
+                                        ->success()
+                                        ->persistent()
+                                        ->send();
+                                } else {
+                                    Notification::make()
+                                        ->title('Error al enviar comprobante')
+                                        ->body($result['message'])
+                                        ->danger()
+                                        ->persistent()
+                                        ->send();
+                                }
+                            } catch (\Exception $e) {
                                 Notification::make()
-                                    ->title('Comprobante enviado exitosamente')
-                                    ->body('El comprobante ha sido enviado y aceptado por SUNAT vía QPS')
-                                    ->success()
-                                    ->persistent()
-                                    ->send();
-                            } else {
-                                Notification::make()
-                                    ->title('Error al enviar comprobante')
-                                    ->body($result['message'])
+                                    ->title('Error inesperado')
+                                    ->body('Error: ' . $e->getMessage())
                                     ->danger()
                                     ->persistent()
                                     ->send();
                             }
-                        } catch (\Exception $e) {
-                            Notification::make()
-                                ->title('Error inesperado')
-                                ->body('Error: ' . $e->getMessage())
-                                ->danger()
-                                ->persistent()
-                                ->send();
-                        }
-                    }),
-                Action::make('void')
-                    ->label('Anular')
-                    ->icon('heroicon-o-x-mark')
-                    ->color('danger')
-                    ->visible(fn(Invoice $record): bool => $record->canBeVoided())
-                    ->form([
-                        Forms\Components\Textarea::make('reason')
-                            ->label('Motivo de Anulación')
-                            ->required()
-                            ->minLength(5)
-                            ->maxLength(255),
-                        Forms\Components\Checkbox::make('confirm')
-                            ->label('Confirmo que deseo anular este comprobante y entiendo que esta acción no se puede deshacer.')
-                            ->required()
-                            ->default(false),
-                    ])
-                    ->requiresConfirmation()
-                    ->modalHeading('Anular Comprobante')
-                    ->modalDescription('Esta acción es irreversible. El comprobante quedará registrado como anulado tanto en el sistema como en SUNAT.')
-                    ->modalSubmitActionLabel('Anular Comprobante')
-                    ->action(function (Invoice $record, array $data): void {
-                        if (!$data['confirm']) {
-                            Notification::make()
-                                ->title('Debe confirmar la anulación')
-                                ->danger()
-                                ->send();
-                            return;
-                        }
-
-                        if (!$record->canBeVoided()) {
-                            Notification::make()
-                                ->title('No se puede anular este comprobante')
-                                ->body('Verifique que no hayan pasado más de 7 días desde su emisión y que no haya sido anulado previamente.')
-                                ->danger()
-                                ->send();
-                            return;
-                        }
-
-                        if ($record->void($data['reason'])) {
-                            Notification::make()
-                                ->title('Comprobante anulado correctamente')
-                                ->success()
-                                ->send();
-                        } else {
-                            Notification::make()
-                                ->title('Error al anular el comprobante')
-                                ->danger()
-                                ->send();
-                        }
-                    }),
-                Action::make('print')
-                    ->label('Imprimir')
-                    ->icon('heroicon-o-printer')
-                    ->color('success')
-                    ->url(fn(Invoice $record) => route('filament.admin.invoices.print-ticket', $record))
-                    ->openUrlInNewTab(),
-                Action::make('download_xml')
-                    ->label('Descargar XML')
-                    ->icon('heroicon-o-document-text')
-                    ->color('info')
-                    ->visible(
-                        fn(Invoice $record): bool => (function ($path) {
-                            if (empty($path)) return false;
-                            if (file_exists($path)) return true;
-                            $normalized = ltrim(str_replace('\\', '/', $path), '/');
-                            if (file_exists(storage_path('app/private/' . $normalized))) return true;
-                            if (file_exists(storage_path('app/' . $normalized))) return true;
-                            return false;
-                        })($record->xml_path)
-                    )
-                    ->url(fn(Invoice $record): string => route('filament.admin.invoices.download-xml', $record))
-                    ->openUrlInNewTab(),
-                Action::make('download_cdr')
-                    ->label('Descargar CDR')
-                    ->icon('heroicon-o-document-check')
-                    ->color('warning')
-                    ->visible(
-                        fn(Invoice $record): bool => (function ($path) {
-                            if (empty($path)) return false;
-                            if (file_exists($path)) return true;
-                            $normalized = ltrim(str_replace('\\', '/', $path), '/');
-                            if (file_exists(storage_path('app/private/' . $normalized))) return true;
-                            if (file_exists(storage_path('app/' . $normalized))) return true;
-                            return false;
-                        })($record->cdr_path)
-                    )
-                    ->url(fn(Invoice $record): string => route('filament.admin.invoices.download-cdr', $record))
-                    ->openUrlInNewTab(),
-                Action::make('download_pdf')
-                    ->label('Descargar PDF')
-                    ->icon('heroicon-o-document-arrow-down')
-                    ->color('gray')
-                    ->url(fn(Invoice $record): string => route('filament.admin.invoices.download-pdf', $record))
-                    ->openUrlInNewTab(),
-                Action::make('resend_to_sunat')
-                    ->label('Reenviar a SUNAT')
-                    ->icon('heroicon-o-arrow-path')
-                    ->color('warning')
-                    ->visible(
-                        fn(Invoice $record): bool =>
-                        in_array($record->sunat_status, ['RECHAZADO']) && in_array($record->invoice_type, ['invoice', 'receipt'])
-                    )
-                    ->requiresConfirmation()
-                    ->modalHeading('Reenviar Comprobante a SUNAT')
-                    ->modalDescription(fn(Invoice $record): string =>
-                    "¿Está seguro de reenviar el comprobante {$record->series}-{$record->number} a SUNAT?")
-                    ->modalSubmitActionLabel('Reenviar')
-                    ->action(function (Invoice $record): void {
-                        try {
-                            // Usar QPS exclusivamente
-                            $qpsService = new \App\Services\QpsService();
-                            $result = $qpsService->sendInvoiceViaQps($record);
-
-                            if ($result['success']) {
-                                Notification::make()->title('Comprobante reenviado vía QPS')->success()->send();
-                            } else {
-                                Notification::make()->title('Error al reenviar')->body($result['message'])->danger()->send();
-                            }
-                        } catch (\Exception $e) {
-                            Notification::make()->title('Error inesperado')->body($e->getMessage())->danger()->send();
-                        }
-                    }),
-                Action::make('crear_nota_credito')
-                    ->label('Crear Nota de Crédito')
-                    ->icon('heroicon-o-document-minus')
-                    ->color('danger')
-                    ->visible(
-                        fn(Invoice $record): bool =>
-                        $record->sunat_status === 'ACEPTADO' &&
-                            !$record->hasCreditNotes() &&
-                            in_array($record->invoice_type, ['invoice', 'receipt'])
-                    )
-                    ->form([
-                        Forms\Components\Select::make('motivo_codigo')
-                            ->label('Motivo de la Nota de Crédito')
-                            ->options([
-                                '01' => '01 - Anulación de la operación',
-                                '02' => '02 - Anulación por error en el RUC',
-                                '03' => '03 - Corrección por error en la descripción',
-                                '04' => '04 - Descuento global',
-                                '05' => '05 - Descuento por ítem',
-                                '06' => '06 - Devolución total',
-                                '07' => '07 - Devolución por ítem',
-                                '08' => '08 - Bonificación',
-                                '09' => '09 - Disminución en el valor',
-                                '10' => '10 - Otros conceptos',
-                            ])
-                            ->required()
-                            ->default('01'),
-                        Forms\Components\Textarea::make('motivo_descripcion')
-                            ->label('Descripción del Motivo')
-                            ->required()
-                            ->maxLength(500)
-                            ->default('Anulación de la operación')
-                            ->rows(3),
-                    ])
-                    ->action(function (Invoice $record, array $data): void {
-                        try {
-                            $sunatService = new \App\Services\SunatService();
-
-                            $result = $sunatService->emitirNotaCredito(
-                                $record,
-                                $data['motivo_codigo'],
-                                $data['motivo_descripcion']
-                            );
-
-                            if ($result['success']) {
-                                $creditNote = $result['credit_note'];
+                        }),
+                    Action::make('void')
+                        ->label('Anular')
+                        ->icon('heroicon-o-x-mark')
+                        ->color('danger')
+                        ->visible(fn(Invoice $record): bool => $record->canBeVoided())
+                        ->form([
+                            Forms\Components\Textarea::make('reason')
+                                ->label('Motivo de Anulación')
+                                ->required()
+                                ->minLength(5)
+                                ->maxLength(255),
+                            Forms\Components\Checkbox::make('confirm')
+                                ->label('Confirmo que deseo anular este comprobante y entiendo que esta acción no se puede deshacer.')
+                                ->required()
+                                ->default(false),
+                        ])
+                        ->requiresConfirmation()
+                        ->modalHeading('Anular Comprobante')
+                        ->modalDescription('Esta acción es irreversible. El comprobante quedará registrado como anulado tanto en el sistema como en SUNAT.')
+                        ->modalSubmitActionLabel('Anular Comprobante')
+                        ->action(function (Invoice $record, array $data): void {
+                            if (!$data['confirm']) {
                                 Notification::make()
-                                    ->title('Nota de crédito creada exitosamente')
-                                    ->body("Serie: {$creditNote->serie}-{$creditNote->numero}")
+                                    ->title('Debe confirmar la anulación')
+                                    ->danger()
+                                    ->send();
+                                return;
+                            }
+
+                            if (!$record->canBeVoided()) {
+                                Notification::make()
+                                    ->title('No se puede anular este comprobante')
+                                    ->body('Verifique que no hayan pasado más de 7 días desde su emisión y que no haya sido anulado previamente.')
+                                    ->danger()
+                                    ->send();
+                                return;
+                            }
+
+                            if ($record->void($data['reason'])) {
+                                Notification::make()
+                                    ->title('Comprobante anulado correctamente')
                                     ->success()
                                     ->send();
                             } else {
-                                throw new \Exception($result['error']);
+                                Notification::make()
+                                    ->title('Error al anular el comprobante')
+                                    ->danger()
+                                    ->send();
                             }
-                        } catch (\Exception $e) {
-                            Notification::make()
-                                ->title('Error al crear la nota de crédito')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
-                        }
-                    })
-                    ->modalHeading('Crear Nota de Crédito')
-                    ->modalDescription('Genere una nota de crédito para esta factura.')
-                    ->modalSubmitActionLabel('Crear Nota de Crédito')
-                    ->modalWidth('lg'),
+                        }),
+                    Action::make('print')
+                        ->label('Imprimir')
+                        ->icon('heroicon-o-printer')
+                        ->color('success')
+                        ->url(fn(Invoice $record) => route('filament.admin.invoices.print-ticket', $record))
+                        ->openUrlInNewTab(),
+                    Action::make('download_xml')
+                        ->label('Descargar XML')
+                        ->icon('heroicon-o-document-text')
+                        ->color('info')
+                        ->visible(
+                            fn(Invoice $record): bool => (function ($path) {
+                                if (empty($path)) return false;
+                                if (file_exists($path)) return true;
+                                $normalized = ltrim(str_replace('\\', '/', $path), '/');
+                                if (file_exists(storage_path('app/private/' . $normalized))) return true;
+                                if (file_exists(storage_path('app/' . $normalized))) return true;
+                                return false;
+                            })($record->xml_path)
+                        )
+                        ->url(fn(Invoice $record): string => route('filament.admin.invoices.download-xml', $record))
+                        ->openUrlInNewTab(),
+                    Action::make('download_cdr')
+                        ->label('Descargar CDR')
+                        ->icon('heroicon-o-document-check')
+                        ->color('warning')
+                        ->visible(
+                            fn(Invoice $record): bool => (function ($path) {
+                                if (empty($path)) return false;
+                                if (file_exists($path)) return true;
+                                $normalized = ltrim(str_replace('\\', '/', $path), '/');
+                                if (file_exists(storage_path('app/private/' . $normalized))) return true;
+                                if (file_exists(storage_path('app/' . $normalized))) return true;
+                                return false;
+                            })($record->cdr_path)
+                        )
+                        ->url(fn(Invoice $record): string => route('filament.admin.invoices.download-cdr', $record))
+                        ->openUrlInNewTab(),
+                    Action::make('download_pdf')
+                        ->label('Descargar PDF')
+                        ->icon('heroicon-o-document-arrow-down')
+                        ->color('gray')
+                        ->url(fn(Invoice $record): string => route('filament.admin.invoices.download-pdf', $record))
+                        ->openUrlInNewTab(),
+                    Action::make('resend_to_sunat')
+                        ->label('Reenviar a SUNAT')
+                        ->icon('heroicon-o-arrow-path')
+                        ->color('warning')
+                        ->visible(
+                            fn(Invoice $record): bool =>
+                            in_array($record->sunat_status, ['RECHAZADO']) && in_array($record->invoice_type, ['invoice', 'receipt'])
+                        )
+                        ->requiresConfirmation()
+                        ->modalHeading('Reenviar Comprobante a SUNAT')
+                        ->modalDescription(fn(Invoice $record): string =>
+                        "¿Está seguro de reenviar el comprobante {$record->series}-{$record->number} a SUNAT?")
+                        ->modalSubmitActionLabel('Reenviar')
+                        ->action(function (Invoice $record): void {
+                            try {
+                                // Usar QPS exclusivamente
+                                $qpsService = new \App\Services\QpsService();
+                                $result = $qpsService->sendInvoiceViaQps($record);
+
+                                if ($result['success']) {
+                                    Notification::make()->title('Comprobante reenviado vía QPS')->success()->send();
+                                } else {
+                                    Notification::make()->title('Error al reenviar')->body($result['message'])->danger()->send();
+                                }
+                            } catch (\Exception $e) {
+                                Notification::make()->title('Error inesperado')->body($e->getMessage())->danger()->send();
+                            }
+                        }),
+                    Action::make('crear_nota_credito')
+                        ->label('Crear Nota de Crédito')
+                        ->icon('heroicon-o-document-minus')
+                        ->color('danger')
+                        ->visible(
+                            fn(Invoice $record): bool =>
+                            $record->sunat_status === 'ACEPTADO' &&
+                                !$record->hasCreditNotes() &&
+                                in_array($record->invoice_type, ['invoice', 'receipt'])
+                        )
+                        ->form([
+                            Forms\Components\Select::make('type')
+                                ->label('Motivo / Tipo de Nota de Crédito')
+                                ->options([
+                                    '01' => 'Anulación de la operación',
+                                    '02' => 'Anulación por error en el RUC',
+                                    '03' => 'Corrección por error en la descripción',
+                                    '04' => 'Descuento global',
+                                    '05' => 'Descuento por ítem',
+                                    '06' => 'Devolución total',
+                                    '07' => 'Devolución por ítem',
+                                    '08' => 'Bonificación',
+                                    '09' => 'Disminución en el valor',
+                                    '10' => 'Otros conceptos',
+                                ])
+                                ->required()
+                                ->default('01'),
+                            Forms\Components\Textarea::make('description')
+                                ->label('Sustento o Descripción del Motivo')
+                                ->required()
+                                ->minLength(5),
+                        ])
+                        ->action(function (Invoice $record, array $data): void {
+                            try {
+                                // Redirigir a la página de creación de nota de crédito con parámetros
+                                redirect()->route('filament.admin.resources.credit-notes.create', [
+                                    'invoice_id' => $record->id,
+                                    'type' => $data['type'],
+                                    'reason' => $data['description']
+                                ]);
+                            } catch (\Exception $e) {
+                                Notification::make()
+                                    ->title('Error')
+                                    ->body($e->getMessage())
+                                    ->danger()
+                                    ->send();
+                            }
+                        })
+                ])
+                ->icon('heroicon-m-ellipsis-vertical')
+                ->color('gray')
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

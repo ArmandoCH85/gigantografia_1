@@ -37,7 +37,7 @@ class ProductFinishResource extends Resource
                             ->maxLength(20)
                             ->unique(ignoreRecord: true)
                             ->label('Código'),
-                        Forms\Components\TextInput::make('additional_cost')
+                        Forms\Components\TextInput::make('cost_per_unit')
                             ->required()
                             ->numeric()
                             ->prefix('S/')
@@ -66,7 +66,7 @@ class ProductFinishResource extends Resource
                 Tables\Columns\TextColumn::make('code')
                     ->searchable()
                     ->label('Código'),
-                Tables\Columns\TextColumn::make('additional_cost')
+                Tables\Columns\TextColumn::make('cost_per_unit')
                     ->money('PEN')
                     ->sortable()
                     ->label('Costo Adicional'),

@@ -211,14 +211,14 @@ class QuotationResource extends Resource
                                             ->label('Producto Base')
                                             ->options(function () {
                                                 return \App\Models\Product::query()
-                                                    ->whereHas('category', fn($q) => $q->whereIn('name', ['BANER', 'VINIL']))
+                                                    ->whereHas('category', fn($q) => $q->whereIn('name', ['Baner', 'Vinil']))
                                                     ->where('active', true)
                                                     ->pluck('name', 'id');
                                             })
                                             ->searchable()
                                             ->preload()
                                             ->required()
-                                            ->reactive()
+                                            ->live()
                                             ->afterStateUpdated(function ($state, $set) {
                                                 if ($state) {
                                                     $product = \App\Models\Product::with('category')->find($state);
@@ -250,8 +250,8 @@ class QuotationResource extends Resource
                                                             ->minValue(0.1)
                                                             ->step(0.01)
                                                             ->suffix('m')
-                                                            ->required()
-                                                            ->reactive()
+                                                            ->required(fn($get) => !\Illuminate\Support\Str::contains(\Illuminate\Support\Str::lower(\App\Models\ProductMaterial::find($get('material_id'))?->name ?? ''), 'lona trasluc'))
+                                                            ->live()
                                                             ->afterStateUpdated(fn($state, $set, $get) => self::calculateCustomPrice($set, $get)),
 
                                                         Forms\Components\TextInput::make('height')
@@ -262,7 +262,7 @@ class QuotationResource extends Resource
                                                             ->step(0.01)
                                                             ->suffix('m')
                                                             ->required()
-                                                            ->reactive()
+                                                            ->live()
                                                             ->afterStateUpdated(fn($state, $set, $get) => self::calculateCustomPrice($set, $get)),
                                                     ]),
 
@@ -281,7 +281,7 @@ class QuotationResource extends Resource
                                                     })
                                                     ->searchable()
                                                     ->required()
-                                                    ->reactive()
+                                                    ->live()
                                                     ->afterStateUpdated(fn($state, $set, $get) => self::calculateCustomPrice($set, $get)),
 
                                                 Forms\Components\Repeater::make('finishes')
@@ -292,24 +292,38 @@ class QuotationResource extends Resource
                                                             ->label('Acabado')
                                                             ->options(\App\Models\ProductFinish::where('active', true)->pluck('name', 'id'))
                                                             ->required()
-                                                            ->reactive()
-                                                            ->afterStateUpdated(function ($state, $set) {
+                                                            ->live()
+                                                            ->afterStateUpdated(function ($state, $set, $get) {
                                                                 $finish = \App\Models\ProductFinish::find($state);
                                                                 $set('_requires_quantity', $finish?->requires_quantity ?? false);
+                                                                self::calculateCustomPrice($set, $get);
                                                             }),
 
-                                                        Forms\Components\TextInput::make('quantity')
-                                                            ->label('Cantidad')
-                                                            ->numeric()
-                                                            ->minValue(1)
-                                                            ->default(1)
-                                                            ->visible(fn($get) => $get('_requires_quantity') ?? false),
+                                                         Forms\Components\TextInput::make('quantity')
+                                                             ->label('Cantidad')
+                                                             ->numeric()
+                                                             ->minValue(1)
+                                                             ->default(1)
+                                                             ->visible(fn($get) => ($get('_requires_quantity') ?? false) && !\Illuminate\Support\Str::contains(\Illuminate\Support\Str::lower(\App\Models\ProductFinish::find($get('id'))?->name ?? ''), 'tubo'))
+                                                             ->live()
+                                                             ->afterStateUpdated(fn($state, $set, $get) => self::calculateCustomPrice($set, $get)),
 
-                                                        Forms\Components\Hidden::make('_requires_quantity'),
+                                                         Forms\Components\TextInput::make('tube_width')
+                                                             ->label('Medida de Tubo (m)')
+                                                             ->numeric()
+                                                             ->inputMode('decimal')
+                                                             ->step(0.01)
+                                                             ->minValue(0.1)
+                                                             ->visible(fn($get) => \Illuminate\Support\Str::contains(\Illuminate\Support\Str::lower(\App\Models\ProductFinish::find($get('id'))?->name ?? ''), 'tubo'))
+                                                             ->required(fn($get) => \Illuminate\Support\Str::contains(\Illuminate\Support\Str::lower(\App\Models\ProductFinish::find($get('id'))?->name ?? ''), 'tubo'))
+                                                             ->live()
+                                                             ->afterStateUpdated(fn($state, $set, $get) => self::calculateCustomPrice($set, $get)),
+
+                                                         Forms\Components\Hidden::make('_requires_quantity'),
                                                     ])
                                                     ->defaultItems(0)
                                                     ->addActionLabel('+ Agregar Acabado')
-                                                    ->reactive()
+                                                    ->live()
                                                     ->afterStateUpdated(fn($state, $set, $get) => self::calculateCustomPrice($set, $get))
                                                     ->columnSpan('full'),
 
@@ -407,10 +421,7 @@ class QuotationResource extends Resource
                                             ->default(0)
                                             ->live(onBlur: true)
                                             ->afterStateUpdated(function ($state, $set, $get) {
-                                                $subtotal = $get('subtotal') ?? 0;
-                                                $tax = $get('tax') ?? 0;
-                                                $discount = $state ?? 0;
-                                                $set('total', $subtotal + $tax - $discount);
+                                                static::recalculateTotals($set, $get);
                                             }),
 
                                         Forms\Components\TextInput::make('total')
@@ -902,6 +913,9 @@ class QuotationResource extends Resource
             $unitPrice = floatval($get('unit_price') ?? 0);
             $subtotal = $quantity * $unitPrice;
             $set('subtotal', $subtotal);
+
+            // IMPORTANTE: Recalcular totales generales
+            static::recalculateTotals($set, $get);
         } catch (\Exception $e) {
             // Registrar error silenciosamente
             \Illuminate\Support\Facades\Log::error('Error al actualizar subtotal', [
@@ -917,93 +931,114 @@ class QuotationResource extends Resource
     protected static function recalculateTotals($set, $get): void
     {
         try {
-            // Intentar obtener detalles desde el scope actual o superior
-            $details = $get('details') ?? $get('../../details') ?? [];
-            
-            // Si no hay detalles, intentar buscar en el formulario raíz (scope fallback)
-            // Nota: Filament no siempre permite acceso raíz fácil desde deep nested
-            
-            $subtotal = 0;
+            // Determinar en qué nivel estamos y obtener el prefijo para llegar a la raíz (donde están los totales)
+            $rootPrefix = '';
+            $details = null;
 
-            foreach ($details as $index => $detail) {
-                // Calcular el subtotal para cada detalle
-                $quantity = floatval($detail['quantity'] ?? 1);
-                $unitPrice = floatval($detail['unit_price'] ?? 0);
-                $detailSubtotal = $quantity * $unitPrice;
-
-                // Actualizar el subtotal del detalle SOLO si estamos en el scope raíz
-                // Si estamos en scope de item, esto podría fallar o no ser necesario ya que se actualiza localmente
-                // $set("details.{$index}.subtotal", $detailSubtotal);
-                
-                // Sumar al subtotal total
-                $subtotal += $detailSubtotal;
+            if ($get('details') !== null) {
+                $rootPrefix = '';
+                $details = $get('details');
+            } elseif ($get('../details') !== null) {
+                $rootPrefix = '../';
+                $details = $get('../details');
+            } elseif ($get('../../details') !== null) {
+                $rootPrefix = '../../';
+                $details = $get('../../details');
             }
 
-            // CORRECCIÓN: Los precios YA INCLUYEN IGV
-            $totalWithIgv = $subtotal;
+            if ($details === null) {
+                return;
+            }
             
-            // Obtener descuento (scope aware)
-            $discount = floatval($get('discount') ?? $get('../../discount') ?? 0);
+            $subtotalTotal = 0;
+
+            foreach ($details as $detail) {
+                $quantity = floatval($detail['quantity'] ?? 1);
+                $unitPrice = floatval($detail['unit_price'] ?? 0);
+                $subtotalTotal += ($quantity * $unitPrice);
+            }
+
+            // Los precios YA INCLUYEN IGV
+            $totalConIgv = $subtotalTotal;
             
-            $totalWithIgvAfterDiscount = $totalWithIgv - $discount;
-
-            // Calcular IGV incluido en el precio
-            $subtotalWithoutIgv = round($totalWithIgvAfterDiscount / 1.18, 2);
-            $tax = round($totalWithIgvAfterDiscount / 1.18 * 0.18, 2);
-
-            // El total es el precio con IGV después del descuento
-            $total = $totalWithIgvAfterDiscount;
-
-            // Actualizar los valores con cálculo correcto, intentando scope raíz
-            // Usamos path relativo ../../ para salir del repeater si es necesario
+            // Obtener descuento del nivel raíz
+            $discount = floatval($get($rootPrefix . 'discount') ?? 0);
             
-            // Helper para setear en scope correcto
-            $setField = function($field, $value) use ($set) {
-                $set($field, $value); // Intento directo
-                $set('../../' . $field, $value); // Intento relativo (fuera del repeater)
-            };
+            $totalFinal = $totalConIgv - $discount;
 
-            $setField('subtotal', $subtotalWithoutIgv);
-            $setField('tax', $tax);
-            $setField('total', $total);
+            // Calcular IGV desglosado (incluido en el total)
+            $subtotalSinIgv = round($totalFinal / 1.18, 2);
+            $tax = round($totalFinal - $subtotalSinIgv, 2);
+
+            // Actualizar campos de totales en la raíz
+            $set($rootPrefix . 'subtotal', $subtotalSinIgv);
+            $set($rootPrefix . 'tax', $tax);
+            $set($rootPrefix . 'total', $totalFinal);
             
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Error al recalcular totales', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
         }
     }
 
-    /**
-     * Calcula precio personalizado basado en configuración
-     */
     protected static function calculateCustomPrice($set, $get): void
     {
         try {
-            $width = floatval($get('width') ?? 0);
-            $height = floatval($get('height') ?? 0);
-            $materialId = $get('material_id');
-            $finishes = $get('finishes') ?? [];
+            // Buscamos los campos necesarios probando el scope actual y scopes superiores
+            // Esto es mucho más robusto que usar prefijos fijos detectados por product_id
+            $prefixes = ['', '../', '../../', '../../../'];
+            
+            $width = 0;
+            $height = 0;
+            $materialId = null;
+            $finishes = [];
+            $foundContext = false;
+            $currentPrefix = '';
 
-            if (!$width || !$height || !$materialId) {
+            foreach ($prefixes as $prefix) {
+                $mId = $get($prefix . 'material_id');
+                $h = $get($prefix . 'height');
+                
+                // Si encontramos material y altura en este nivel, asumimos que es el contexto del detalle
+                if ($mId !== null && $h !== null) {
+                    $width = floatval($get($prefix . 'width') ?? 0);
+                    $height = floatval($h ?? 0);
+                    $materialId = $mId;
+                    $finishes = $get($prefix . 'finishes') ?? [];
+                    $currentPrefix = $prefix;
+                    $foundContext = true;
+                    break;
+                }
+            }
+
+            if (!$foundContext || !$materialId || !$height) {
                 return;
             }
 
-            // Obtener price_tier del cliente
-            // Intentamos varias rutas para llegar al cliente id
+            // Validación específica para Lona Traslúcida vs Resto
+            $material = \App\Models\ProductMaterial::find($materialId);
+            $isLonaTrasluc = $material && \Illuminate\Support\Str::contains(\Illuminate\Support\Str::lower($material->name ?? ''), 'lona trasluc');
+
+            if (!$isLonaTrasluc && !$width) {
+                return;
+            }
+
+            // Buscar el ID del cliente (usualmente en la raíz)
             $customerId = $get('customer_id') 
+                ?? $get('../customer_id') 
                 ?? $get('../../customer_id') 
-                ?? $get('../../../customer_id') 
+                ?? $get('../../../customer_id')
                 ?? $get('../../../../customer_id');
                 
             $priceTierId = null;
-
             if ($customerId) {
                 $customer = \App\Models\Customer::find($customerId);
                 $priceTierId = $customer?->price_tier_id;
             }
 
-            // Calcular precio
+            // Calcular precio usando el servicio
             $calculator = new \App\Services\PriceCalculatorService();
             $price = $calculator->calculatePrice(
                 $width,
@@ -1013,18 +1048,20 @@ class QuotationResource extends Resource
                 $priceTierId
             );
 
-            // Setear precio y subtotal del ITEM actual
-            $set('unit_price', $price);
-            $quantity = floatval($get('quantity') ?? 1);
-            $set('subtotal', $price * $quantity);
-            $set('_precio_calculado', 'S/ ' . number_format($price, 2));
+            // Aplicar el precio y subtotal al ítem del detalle usando el prefijo encontrado
+            $set($currentPrefix . 'unit_price', $price);
+            $quantity = floatval($get($currentPrefix . 'quantity') ?? 1);
+            $set($currentPrefix . 'subtotal', $price * $quantity);
+            $set($currentPrefix . '_precio_calculado', 'S/ ' . number_format($price, 2));
 
-            // IMPORTANTE: Recalcular totales globales
-            // Pasamos el scope actual
+            // Recalcular totales generales
             self::recalculateTotals($set, $get);
             
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Error calculando precio', ['error' => $e->getMessage()]);
+            \Illuminate\Support\Facades\Log::error('Error crítico en calculateCustomPrice', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
         }
     }
 }
