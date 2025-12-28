@@ -309,7 +309,9 @@ class Quotation extends Model
                 'service_type' => $serviceType,
                 'table_id' => $tableId,
                 'customer_id' => $this->customer_id,
-                'employee_id' => $this->user_id, // Usar el usuario de la cotización como empleado
+                'employee_id' => \App\Models\Employee::where('user_id', $this->user_id)->value('id') 
+                    ?? \App\Models\Employee::where('user_id', \Illuminate\Support\Facades\Auth::id())->value('id')
+                    ?? \App\Models\Employee::first()->id, // Fallback safely to first employee if association missing
                 'order_datetime' => now(),
                 'status' => Order::STATUS_OPEN,
                 'subtotal' => $this->subtotal,

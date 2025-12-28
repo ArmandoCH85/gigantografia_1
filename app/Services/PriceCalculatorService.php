@@ -147,17 +147,19 @@ class PriceCalculatorService
             }
         }
 
-        return $factor;
+        return (float) ($factor ?? 0.0);
     }
 
     protected function isBanner($material): bool
     {
-        return $material->category && Str::contains(Str::lower($material->category->name), 'banner');
+        // Support 'BANER' and 'BANNER'
+        return $material->category && Str::contains(Str::lower($material->category->name), ['banner', 'baner']);
     }
 
     protected function isVinil($material): bool
     {
-        return $material->category && Str::contains(Str::lower($material->category->name), 'vinil');
+        // Support 'VINIL' and 'VINILO'
+        return $material->category && Str::contains(Str::lower($material->category->name), ['vinil', 'vinilo']);
     }
 
     protected function isFoamOrCeltex($material): bool

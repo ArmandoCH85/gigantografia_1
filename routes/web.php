@@ -351,162 +351,19 @@ Route::get('/print/invoice/{invoice}', function(Invoice $invoice) {
     ];
 
     // Datos para el PDF/HTML
-    $invoice->load(['customer', 'details.product', 'order.table', 'order.payments']);
-    // Pasar contacto solo para Nota de Venta en venta directa (sin mesa, no delivery)
+    $invoice->load(['customer', 'details.product', 'order.payments']);
+
+    // Pasar contacto solo para Nota de Venta en venta directa
     $directSaleName = null;
-    if ($invoice->invoice_type === 'sales_note' && ($invoice->order && empty($invoice->order->table_id)) && ($invoice->order->service_type ?? null) !== 'delivery') {
+    if ($invoice->invoice_type === 'sales_note' && ($invoice->order) && ($invoice->order->service_type ?? null) !== 'delivery') {
         $directSaleName = session('direct_sale_customer_name');
     }
+    
+    // ...
 
-    $data = [
-        'invoice' => $invoice,
-        'company' => $company,
-        'direct_sale_customer_name' => $directSaleName
-    ];
-
-    // Determinar la vista según el tipo de documento
-    $view = match($invoice->invoice_type) {
-        'receipt' => 'pdf.receipt',
-        'sales_note' => 'pdf.sales_note',
-        default => 'pdf.invoice'
-    };
-
-    try {
-        // Generar HTML con JavaScript y CSS optimizado para papel térmico
-        $html = Blade::render($view, $data);
-
-        // CSS y JavaScript optimizado para papel térmico 58mm/80mm
-        $thermal_optimization = "
-        <style>
-            /* Estilos optimizados para papel térmico 58mm/80mm */
-            @media print {
-                @page {
-                    margin: 0;
-                    size: 80mm auto; /* Ancho estándar térmico */
-                }
-                body {
-                    width: 80mm;
-                    margin: 0;
-                    padding: 2mm;
-                    font-family: 'Courier New', monospace;
-                    font-size: 10px;
-                    line-height: 1.1;
-                    -webkit-print-color-adjust: exact;
-                    color-adjust: exact;
-                }
-                .container { width: 100%; max-width: none; }
-                .header h1 { font-size: 12px; margin: 0 0 2mm 0; text-align: center; }
-                .header p { font-size: 8px; margin: 0; text-align: center; }
-                .info-table, .details-table { width: 100%; font-size: 8px; }
-                .details-table th, .details-table td { padding: 0.5mm; border: none; }
-                .total-section { margin-top: 2mm; font-size: 9px; font-weight: bold; }
-                hr { border: none; border-top: 1px dashed #000; margin: 1mm 0; }
-                .no-print { display: none !important; }
-            }
-            @media screen {
-                body {
-                    width: 80mm; margin: 10px auto; padding: 10px;
-                    border: 1px solid #ccc; background: white;
-                    font-family: 'Courier New', monospace; font-size: 11px;
-                }
-            }
-        </style>
-        <script>
-            window.addEventListener('load', function() {
-                setTimeout(function() {
-                    console.log('🖨️ Impresión térmica automática iniciada...');
-                    window.print();
-                    window.addEventListener('afterprint', function() {
-                        setTimeout(() => window.close(), 500);
-                    });
-                }, 800);
-            });
-        </script>";
-
-        // Insertar optimización térmica antes del cierre de </head> o al inicio de <body>
-        if (strpos($html, '</head>') !== false) {
-            $html = str_replace('</head>', $thermal_optimization . '</head>', $html);
-        } else {
-            $html = '<html><head>' . $thermal_optimization . '</head><body>' . $html . '</body></html>';
-        }
-
-        Log::info('✅ HTML DE IMPRESIÓN GENERADO CORRECTAMENTE', ['invoice_id' => $invoice->id]);
-
-        // Limpiar nombre de venta directa para no reutilizarlo
-        if ($invoice->invoice_type === 'sales_note') {
-            session()->forget('direct_sale_customer_name');
-        }
-
-        return response($html, 200, [
-            'Content-Type' => 'text/html; charset=utf-8',
-            'Cache-Control' => 'no-cache, no-store, must-revalidate',
-            'Pragma' => 'no-cache',
-            'Expires' => '0'
-        ]);
-
-    } catch (\Exception $e) {
-        Log::error('❌ ERROR EN RUTA DE IMPRESIÓN', [
-            'invoice_id' => $invoice->id,
-            'error' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine()
-        ]);
-
-        return response('Error al generar comprobante: ' . $e->getMessage(), 500);
-    }
-})->middleware(['web'])->name('print.invoice');
-
-
-
-// Rutas para visualización individual de reportes
-Route::middleware(['web', 'auth'])->group(function () {
-    Route::get('/admin/reportes/{category}/{reportType}', function($category, $reportType) {
-        try {
-            // Crear una instancia de la página y configurar propiedades públicas
-            $page = new \App\Filament\Pages\ReportViewerPage;
-
-            // Configurar propiedades directamente
-            $page->category = $category;
-            $page->reportType = $reportType;
-
-            // Manejar parámetros de filtro desde la URL
-            $dateRange = request('dateRange', 'today');
-            $page->dateRange = $dateRange;
-
-            // Si es filtro personalizado, tomar fechas y horas de la URL
-            if ($dateRange === 'custom') {
-                $page->startDate = request('startDate', now()->format('Y-m-d'));
-                $page->endDate = request('endDate', now()->format('Y-m-d'));
-                $page->startTime = request('startTime');
-                $page->endTime = request('endTime');
-                $page->invoiceType = request('invoiceType');
-            } else {
-                // Configurar fechas según el filtro predeterminado
-                $page->setDateRange($dateRange);
-            }
-
-            // Cargar datos del reporte
-            $page->loadReportData();
-
-            // Renderizar usando la vista Blade directamente
-            return view('filament.pages.report-viewer-page', [
-                'page' => $page,
-                'reportType' => $reportType,
-                'category' => $category
-            ]);
-        } catch (\Exception $e) {
-            // En caso de error, mostrar mensaje amigable
-            return response()->view('errors.generic', [
-                'message' => 'Error al cargar el reporte: ' . $e->getMessage(),
-                'backUrl' => route('filament.admin.pages.reportes')
-            ], 500);
-        }
-    })->name('filament.admin.pages.report-viewer');
-
-    // Rutas para modal de detalle y impresión de órdenes
     Route::get('/admin/orders/{order}/detail', function($orderId) {
         try {
-            $order = \App\Models\Order::with(['customer', 'user', 'table', 'orderDetails.product'])->findOrFail($orderId);
+            $order = \App\Models\Order::with(['customer', 'user', 'orderDetails.product'])->findOrFail($orderId);
 
             return view('filament.modals.order-detail', compact('order'));
         } catch (\Exception $e) {
@@ -516,7 +373,7 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     Route::get('/admin/orders/{order}/print', function($orderId) {
         try {
-            $order = \App\Models\Order::with(['customer', 'user', 'table', 'orderDetails.product'])->findOrFail($orderId);
+            $order = \App\Models\Order::with(['customer', 'user', 'orderDetails.product'])->findOrFail($orderId);
 
             return view('filament.modals.order-print', compact('order'));
         } catch (\Exception $e) {

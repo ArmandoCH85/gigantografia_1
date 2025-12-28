@@ -62,6 +62,7 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Pages\Dashboard::class, // ✅ Dashboard personalizado por roles
                 \App\Filament\Pages\ReportesPage::class,
                 \App\Filament\Pages\ReportViewerPage::class,
+                \App\Filament\Pages\GestionCaja::class, // ✅ Nueva gestión de caja
 
             ])
             // COMENTADO: Auto-descubrimiento de widgets deshabilitado para control granular

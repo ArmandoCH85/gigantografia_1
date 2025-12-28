@@ -80,7 +80,7 @@ class InvoiceController extends Controller
             // Cargar relaciones necesarias
             $invoice->load([
                 'order.orderDetails.product',
-                'order.table',
+                'order.orderDetails.product',
                 'order.deliveryOrder',
                 'order.employee', // ✅ AGREGAR: Cargar empleado/mesero de la orden
                 'order.user',     // ✅ AGREGAR: Cargar usuario de la orden como fallback
@@ -234,7 +234,7 @@ class InvoiceController extends Controller
     {
         $invoice = Invoice::with([
             'order.orderDetails.product',
-            'order.table',
+            'order.orderDetails.product',
             'order.deliveryOrder',
             'order.employee', // ✅ AGREGAR: Cargar empleado/mesero de la orden
             'order.user',     // ✅ AGREGAR: Cargar usuario de la orden como fallback
@@ -277,7 +277,7 @@ class InvoiceController extends Controller
         $invoice = \App\Models\Invoice::with([
             'customer',
             'details',
-            'order.table',
+            'details',
             'order.deliveryOrder',
             'order.employee', // ✅ AGREGAR: Cargar empleado/mesero de la orden
             'order.user',     // ✅ AGREGAR: Cargar usuario de la orden como fallback
@@ -450,7 +450,7 @@ class InvoiceController extends Controller
             $invoice->load([
                 'customer', 
                 'details.product', 
-                'order.table',
+                'details.product',
                 'order.employee', // ✅ AGREGAR: Cargar empleado/mesero de la orden
                 'order.user',     // ✅ AGREGAR: Cargar usuario de la orden como fallback
                 'employee'        // ✅ AGREGAR: Cargar empleado directo de la factura

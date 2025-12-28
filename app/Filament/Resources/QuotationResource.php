@@ -913,18 +913,16 @@ class QuotationResource extends Resource
     /**
      * Método auxiliar para recalcular los totales generales de la cotización
      * basado en los detalles de productos.
-     *
-     * @param callable $set Función para establecer valores en el formulario
-     * @param callable $get Función para obtener valores del formulario
-     * @return void
      */
     protected static function recalculateTotals($set, $get): void
     {
         try {
-            // Obtener todos los detalles
-            $details = $get('details') ?? [];
-
-            // Calcular el subtotal sumando todos los subtotales de los detalles
+            // Intentar obtener detalles desde el scope actual o superior
+            $details = $get('details') ?? $get('../../details') ?? [];
+            
+            // Si no hay detalles, intentar buscar en el formulario raíz (scope fallback)
+            // Nota: Filament no siempre permite acceso raíz fácil desde deep nested
+            
             $subtotal = 0;
 
             foreach ($details as $index => $detail) {
@@ -933,16 +931,20 @@ class QuotationResource extends Resource
                 $unitPrice = floatval($detail['unit_price'] ?? 0);
                 $detailSubtotal = $quantity * $unitPrice;
 
-                // Actualizar el subtotal del detalle
-                $set("details.{$index}.subtotal", $detailSubtotal);
-
+                // Actualizar el subtotal del detalle SOLO si estamos en el scope raíz
+                // Si estamos en scope de item, esto podría fallar o no ser necesario ya que se actualiza localmente
+                // $set("details.{$index}.subtotal", $detailSubtotal);
+                
                 // Sumar al subtotal total
                 $subtotal += $detailSubtotal;
             }
 
             // CORRECCIÓN: Los precios YA INCLUYEN IGV
             $totalWithIgv = $subtotal;
-            $discount = floatval($get('discount') ?? 0);
+            
+            // Obtener descuento (scope aware)
+            $discount = floatval($get('discount') ?? $get('../../discount') ?? 0);
+            
             $totalWithIgvAfterDiscount = $totalWithIgv - $discount;
 
             // Calcular IGV incluido en el precio
@@ -952,17 +954,26 @@ class QuotationResource extends Resource
             // El total es el precio con IGV después del descuento
             $total = $totalWithIgvAfterDiscount;
 
-            // Actualizar los valores con cálculo correcto
-            $set('subtotal', $subtotalWithoutIgv);
-            $set('tax', $tax);
-            $set('total', $total);
+            // Actualizar los valores con cálculo correcto, intentando scope raíz
+            // Usamos path relativo ../../ para salir del repeater si es necesario
+            
+            // Helper para setear en scope correcto
+            $setField = function($field, $value) use ($set) {
+                $set($field, $value); // Intento directo
+                $set('../../' . $field, $value); // Intento relativo (fuera del repeater)
+            };
+
+            $setField('subtotal', $subtotalWithoutIgv);
+            $setField('tax', $tax);
+            $setField('total', $total);
+            
         } catch (\Exception $e) {
-            // Registrar error silenciosamente
             \Illuminate\Support\Facades\Log::error('Error al recalcular totales', [
                 'error' => $e->getMessage()
             ]);
         }
     }
+
     /**
      * Calcula precio personalizado basado en configuración
      */
@@ -979,7 +990,12 @@ class QuotationResource extends Resource
             }
 
             // Obtener price_tier del cliente
-            $customerId = $get('../../customer_id');
+            // Intentamos varias rutas para llegar al cliente id
+            $customerId = $get('customer_id') 
+                ?? $get('../../customer_id') 
+                ?? $get('../../../customer_id') 
+                ?? $get('../../../../customer_id');
+                
             $priceTierId = null;
 
             if ($customerId) {
@@ -997,10 +1013,16 @@ class QuotationResource extends Resource
                 $priceTierId
             );
 
+            // Setear precio y subtotal del ITEM actual
             $set('unit_price', $price);
-
             $quantity = floatval($get('quantity') ?? 1);
             $set('subtotal', $price * $quantity);
+            $set('_precio_calculado', 'S/ ' . number_format($price, 2));
+
+            // IMPORTANTE: Recalcular totales globales
+            // Pasamos el scope actual
+            self::recalculateTotals($set, $get);
+            
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Error calculando precio', ['error' => $e->getMessage()]);
         }

@@ -46,11 +46,15 @@ class ProductMaterialResource extends Resource
                             ->maxLength(20)
                             ->unique(ignoreRecord: true)
                             ->label('Código'),
-                        Forms\Components\TextInput::make('unit_price')
+                        Forms\Components\TextInput::make('price_factor_standard')
                             ->required()
                             ->numeric()
                             ->prefix('S/')
-                            ->label('Precio por m²'),
+                            ->label('Precio Estándar (Factor)'),
+                        Forms\Components\TextInput::make('price_factor_wholesale')
+                            ->numeric()
+                            ->prefix('S/')
+                            ->label('Precio Mayorista (Factor)'),
                         Forms\Components\TextInput::make('max_width')
                             ->numeric()
                             ->suffix('m')
@@ -81,10 +85,10 @@ class ProductMaterialResource extends Resource
                 Tables\Columns\TextColumn::make('code')
                     ->searchable()
                     ->label('Código'),
-                Tables\Columns\TextColumn::make('unit_price')
+                Tables\Columns\TextColumn::make('price_factor_standard')
                     ->money('PEN')
                     ->sortable()
-                    ->label('Precio m²'),
+                    ->label('Precio Estándar'),
                 Tables\Columns\IconColumn::make('active')
                     ->boolean()
                     ->label('Activo'),
