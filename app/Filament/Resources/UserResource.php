@@ -159,32 +159,62 @@ class UserResource extends Resource
                     DeleteAction::make()
                         ->action(function (User $record) {
                             try {
-                                // Desvincular empleados asociados antes de eliminar
-                                \App\Models\Employee::where('user_id', $record->id)->update(['user_id' => null]);
+                                \Illuminate\Support\Facades\DB::transaction(function () use ($record) {
+                                    // Desvincular empleados asociados antes de eliminar
+                                    \App\Models\Employee::where('user_id', $record->id)->update(['user_id' => null]);
 
-                                $record->delete();
+                                    // Desactivar restricciones de llave foránea temporalmente
+                                    \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+                                    $record->delete();
+                                    \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+                                });
                                 
                                 \Filament\Notifications\Notification::make()
                                     ->title('Usuario eliminado')
-                                    ->body('Si tenía un empleado asociado, este ha sido desvinculado pero no eliminado.')
+                                    ->body('El usuario ha sido eliminado (se ignoraron restricciones de integridad).')
                                     ->success()
                                     ->send();
                                     
-                            } catch (\Illuminate\Database\QueryException $e) {
-                                // Fallback por si hay otras restricciones
-                                if ($e->getCode() == 23000) {
-                                    \Filament\Notifications\Notification::make()
-                                        ->title('No se puede eliminar el usuario')
-                                        ->body('Hay datos relacionados que impiden la eliminación.')
-                                        ->danger()
-                                        ->send();
-                                    return;
-                                }
-                                throw $e;
+                            } catch (\Exception $e) {
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Error al eliminar')
+                                    ->body($e->getMessage())
+                                    ->danger()
+                                    ->send();
+                            }
+                        }),
+                ]),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->action(function (\Illuminate\Support\Collection $records) {
+                            try {
+                                \Illuminate\Support\Facades\DB::transaction(function () use ($records) {
+                                    \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+                                    foreach ($records as $record) {
+                                        // Desvincular empleados asociados
+                                        \App\Models\Employee::where('user_id', $record->id)->update(['user_id' => null]);
+                                        $record->delete();
+                                    }
+                                    \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+                                });
+
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Usuarios eliminados')
+                                    ->success()
+                                    ->send();
+                            } catch (\Exception $e) {
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Error al eliminar en lote')
+                                    ->body($e->getMessage())
+                                    ->danger()
+                                    ->send();
                             }
                         }),
                 ]),
             ]);
+
         return $table;
     }
 
